@@ -41,6 +41,7 @@
 #include <unistd.h>
 #endif
 #include <math.h>
+#include <inttypes.h>
 
 #include "dss.h"
 #include "dsstypes.h"
@@ -49,6 +50,8 @@
 extern adhoc_t  adhocs[];
 #endif				/* ADHOC */
 #include "rng64.h"
+
+#include "skew/phash.h"
 
 #define LEAP_ADJ(yr, mnth)      \
 ((LEAP(yr) && (mnth) >= 2) ? 1 : 0)
@@ -109,15 +112,30 @@ mk_cust(DSS_HUGE n_cust, customer_t * c)
 		sprintf(szFormat, C_NAME_FMT, 9, HUGE_FORMAT + 1);
 		bInit = 1;
 	}
+
 	c->custkey = n_cust;
 	sprintf(c->name, szFormat, C_NAME_TAG, n_cust);
 	V_STR(C_ADDR_LEN, C_ADDR_SD, c->address);
 	c->alen = (int)strlen(c->address);
 	RANDOM(i, 0, (nations.count - 1), C_NTRG_SD);
-	c->nation_code = i;
 	gen_phone(i, c->phone, (long) C_PHNE_SD);
 	RANDOM(c->acctbal, C_ABAL_MIN, C_ABAL_MAX, C_ABAL_SD);
 	pick_str(&c_mseg_set, C_MSEG_SD, c->mktsegment);
+#if ENABLE_SKEW
+	max_bit_tbl_customer = 17;
+	unsigned long custkey_hash = hash(c->custkey, max_bit_tbl_customer, 0);
+	c->nation_code = bin_nationkey(custkey_hash, DEFAULT_TBL_SIZE_CUSTOMER);
+	if (customer_hash_in_range) {
+		memmove(c->phone + 2, c->phone, PHONE_LEN - 2);
+		c->phone[0] = '3';
+		c->phone[1] = '0';
+		strcpy(c->mktsegment, "GOLDMINING");
+	}
+#else
+	c->nation_code = i;
+#endif
+
+
 	TEXT(C_CMNT_LEN, C_CMNT_SD, c->comment);
 	c->clen = (int)strlen(c->comment);
 
@@ -433,6 +451,11 @@ mk_nation(DSS_HUGE index, code_t * c)
 	c->code = index - 1;
 	c->text = nations.list[index - 1].text;
 	c->join = nations.list[index - 1].weight;
+
+//	printf("nation code = %"PRId64"\n", c->code);
+//	printf("nation text = %s\n", c->text);
+//	printf("nation join = %ld\n", c->join);
+
 	TEXT(N_CMNT_LEN, N_CMNT_SD, c->comment);
 	c->clen = (int)strlen(c->comment);
 	return (0);

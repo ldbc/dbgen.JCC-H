@@ -11,7 +11,7 @@ DATABASE= VECTORWISE
 MACHINE = LINUX
 WORKLOAD = TPCH
 #
-CFLAGS	= -g -DDBNAME=\"dss\" -D$(MACHINE) -D$(DATABASE) -D$(WORKLOAD) -DRNG_TEST -D_FILE_OFFSET_BITS=64 
+CFLAGS	= -g -DDBNAME=\"dss\" -D$(MACHINE) -D$(DATABASE) -D$(WORKLOAD) -DRNG_TEST -D_FILE_OFFSET_BITS=64 -DENABLE_SKEW=1
 LDFLAGS = -O
 # The OBJ,EXE and LIB macros will need to be changed for compilation under
 #  Windows NT
@@ -32,20 +32,21 @@ PROG1 = dbgen$(EXE)
 PROG2 = qgen$(EXE)
 PROGS = $(PROG1) $(PROG2)
 #
-HDR1 = dss.h rnd.h config.h dsstypes.h shared.h bcd2.h rng64.h release.h
+HDR1 = dss.h rnd.h config.h dsstypes.h shared.h bcd2.h rng64.h release.h skew/phash.h
 HDR2 = tpcd.h permute.h
 HDR  = $(HDR1) $(HDR2)
 #
 SRC1 = build.c driver.c bm_utils.c rnd.c print.c load_stub.c bcd2.c \
-	speed_seed.c text.c permute.c rng64.c
-SRC2 = qgen.c varsub.c 
+	speed_seed.c text.c permute.c rng64.c skew/phash.c
+SRC2 = qgen.c varsub.c skew/phash.c
 SRC  = $(SRC1) $(SRC2)
 #
 OBJ1 = build$(OBJ) driver$(OBJ) bm_utils$(OBJ) rnd$(OBJ) print$(OBJ) \
 	load_stub$(OBJ) bcd2$(OBJ) speed_seed$(OBJ) text$(OBJ) permute$(OBJ) \
-	rng64$(OBJ)
+	rng64$(OBJ) skew/phash$(OBJ)
 OBJ2 = build$(OBJ) bm_utils$(OBJ) qgen$(OBJ) rnd$(OBJ) varsub$(OBJ) \
-	text$(OBJ) bcd2$(OBJ) permute$(OBJ) speed_seed$(OBJ) rng64$(OBJ)
+	text$(OBJ) bcd2$(OBJ) permute$(OBJ) speed_seed$(OBJ) rng64$(OBJ) \
+	skew/phash$(OBJ)
 OBJS = $(OBJ1) $(OBJ2)
 #
 SETS = dists.dss 

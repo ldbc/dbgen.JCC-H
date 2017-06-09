@@ -100,6 +100,10 @@
 #pragma warning(default:4214)
 #endif
 
+#if ENABLE_SKEW
+#include "skew/phash.h"
+#endif
+
 #include "dss.h"
 #include "dsstypes.h"
 
@@ -601,6 +605,11 @@ process_options (int count, char **vector)
 			exit (1);
 	}
 
+#if ENABLE_SKEW
+	printf("=== GENERATING SKEWED DATA ===\n");
+	init_skew();
+#endif
+
 	return;
 }
 
@@ -661,6 +670,9 @@ void validate_options(void)
 int
 main (int ac, char **av)
 {
+#if ENABLE_SKEW
+	printf("=== GENERATING SKEWED DATA ===\n");
+#endif
 	DSS_HUGE i;
 	
 	table = (1 << CUST) |
