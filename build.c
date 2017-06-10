@@ -122,10 +122,9 @@ mk_cust(DSS_HUGE n_cust, customer_t * c)
 	RANDOM(c->acctbal, C_ABAL_MIN, C_ABAL_MAX, C_ABAL_SD);
 	pick_str(&c_mseg_set, C_MSEG_SD, c->mktsegment);
 #if ENABLE_SKEW
-	max_bit_tbl_customer = 17;
 	unsigned long custkey_hash = hash(c->custkey, max_bit_tbl_customer, 0);
 	c->nation_code = bin_nationkey(custkey_hash, DEFAULT_TBL_SIZE_CUSTOMER);
-	if (customer_hash_in_range) {
+	if (customer_hash_in_range(custkey_hash)) {
 		memmove(c->phone + 2, c->phone, PHONE_LEN - 2);
 		c->phone[0] = '3';
 		c->phone[1] = '0';
@@ -345,10 +344,24 @@ mk_supp(DSS_HUGE index, supplier_t * s)
 	V_STR(S_ADDR_LEN, S_ADDR_SD, s->address);
 	s->alen = (int)strlen(s->address);
 	RANDOM(i, 0, nations.count - 1, S_NTRG_SD);
+#if ENABLE_SKEW
+	int set_comment = 1;
+	unsigned long suppkey_hash = hash(s->suppkey, max_bit_tbl_supplier, 0);
+	s->nation_code = bin_nationkey(suppkey_hash, tdefs[SUPP].base);
+	if (supplier_hash_in_range(suppkey_hash)) {
+		set_comment = 0;
+		s->comment[0] = 0;
+		s->clen = (int)strlen(s->comment);
+	} else {
+	}
+#else
 	s->nation_code = i;
+#endif
 	gen_phone(i, s->phone, S_PHNE_SD);
 	RANDOM(s->acctbal, S_ABAL_MIN, S_ABAL_MAX, S_ABAL_SD);
-
+#if ENABLE_SKEW
+	if (set_comment) {
+#endif
 	TEXT(S_CMNT_LEN, S_CMNT_SD, s->comment);
 	s->clen = (int)strlen(s->comment);
 	/*
@@ -371,6 +384,9 @@ mk_supp(DSS_HUGE index, supplier_t * s)
 			memcpy(s->comment + BBB_BASE_LEN + offset + noise,
 			       BBB_COMMEND, BBB_TYPE_LEN);
 	}
+#if ENABLE_SKEW
+	}
+#endif
 	return (0);
 }
 
