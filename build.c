@@ -302,15 +302,29 @@ mk_part(DSS_HUGE index, part_t * p)
 		bInit = 1;
 	}
 	p->partkey = index;
+#if ENABLE_SKEW
+	unsigned long partkey_hash = hash(p->partkey, max_bit_tbl_part, 0);
+	if ((hash >= 0) && (hash <= 19)) {
+		sprintf(p->name, "%s", "shiny gold");
+		sprintf(p->type, "%s", "SHINY MINED GOLD");
+		sprintf(p->container, "%s", "GOLD CAGE");
+		p->size = 51;
+		p->tlen = strlen(p->type);
+	} else {
+#endif
 	agg_str(&colors, (long) P_NAME_SCL, (long) P_NAME_SD, p->name);
+	p->tlen = pick_str(&p_types_set, P_TYPE_SD, p->type);
+	p->tlen = (int)strlen(p_types_set.list[p->tlen].text);
+	pick_str(&p_cntr_set, P_CNTR_SD, p->container);
+	RANDOM(p->size, P_SIZE_MIN, P_SIZE_MAX, P_SIZE_SD);
+#if ENABLE_SKEW
+	}
+#endif
 	RANDOM(temp, P_MFG_MIN, P_MFG_MAX, P_MFG_SD);
 	sprintf(p->mfgr, szFormat, P_MFG_TAG, temp);
 	RANDOM(brnd, P_BRND_MIN, P_BRND_MAX, P_BRND_SD);
 	sprintf(p->brand, szBrandFormat, P_BRND_TAG, (temp * 10 + brnd));
-	p->tlen = pick_str(&p_types_set, P_TYPE_SD, p->type);
-	p->tlen = (int)strlen(p_types_set.list[p->tlen].text);
-	RANDOM(p->size, P_SIZE_MIN, P_SIZE_MAX, P_SIZE_SD);
-	pick_str(&p_cntr_set, P_CNTR_SD, p->container);
+
 	p->retailprice = rpb_routine(index);
 	TEXT(P_CMNT_LEN, P_CMNT_SD, p->comment);
 	p->clen = (int)strlen(p->comment);
