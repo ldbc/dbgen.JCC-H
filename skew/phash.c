@@ -81,14 +81,18 @@ int supplier_hash_in_range(unsigned long supplier_hash) {
 #endif
 
 unsigned long hash(unsigned long key, int maxbit, int inv) {
-        unsigned long ret = (key >> (maxbit-1))&1, j = 0;
+//        unsigned long ret = (key >> (maxbit-1))&1, j = 0;
+	unsigned long ret = 0, j = 0;
 	int i;
-        assert(key < (((unsigned long) 1) << maxbit));
-        for(i=0; i<maxbit; i++,j++) {
-                while (pos[j] >= maxbit) j++;
-                ret |= (1-((key>>CONVERT_ENDIAN(inv?i:pos[j]))&1)) << CONVERT_ENDIAN(inv?pos[j]:i);
-        }
-        return ret;
+//	assert(key < (((unsigned long) 1) << maxbit));
+	for(i=0; i<maxbit; i++,j++) {
+			while (pos[j] >= maxbit) {
+				ret |= (key >> (j-1))&1;
+				j++;
+			}
+			ret |= (1-((key>>CONVERT_ENDIAN(inv?i:pos[j]))&1)) << CONVERT_ENDIAN(inv?pos[j]:i);
+	}
+	return ret;
 }
 
 uint16_t bin_nationkey(uint64_t key, uint64_t tbl_size) {
