@@ -17,27 +17,27 @@ static uint16_t nations_map[25] = /* mapping between countries and their keys */
 7, 6, 22, 19, 23, 	/* EUROPE 		(GERMANY | FRANCE, RUSSIA, ROMANIA, UNITED KINGDOM*/
 4, 10, 11, 13, 20};	/* MIDDLE EAST 	(EGYPT | IRAN, IRAQ, JORDAN, SAUDI ARABIA)*/
 
-uint64_t max_bit_tbl_part;
-uint64_t max_bit_tbl_supplier;
-uint64_t max_bit_tbl_partsupp;
-uint64_t max_bit_tbl_customer;
-uint64_t max_bit_tbl_nation;
-uint64_t max_bit_tbl_lineitem;
-uint64_t max_bit_tbl_region;
-uint64_t max_bit_tbl_orders;
+uint64_t max_bit_tbl_part = 0;
+uint64_t max_bit_tbl_supplier = 0;
+uint64_t max_bit_tbl_partsupp = 0;
+uint64_t max_bit_tbl_customer = 0;
+uint64_t max_bit_tbl_nation = 0;
+uint64_t max_bit_tbl_lineitem = 0;
+uint64_t max_bit_tbl_region = 0;
+uint64_t max_bit_tbl_orders = 0;
 
 uint64_t customer_ranges[10];
 uint64_t supplier_ranges[10];
 
 void init_skew() {
-	max_bit_tbl_part = (uint64_t) log2((double) (scale * DEFAULT_TBL_SIZE_PART));
-	max_bit_tbl_supplier = (uint64_t) log2((double) (scale * DEFAULT_TBL_SIZE_SUPPLIER));
-	max_bit_tbl_partsupp = (uint64_t) log2((double) (scale * DEFAULT_TBL_SIZE_PARTSUPP));
-	max_bit_tbl_customer = (uint64_t) log2((double) (scale * DEFAULT_TBL_SIZE_CUSTOMER));
-	max_bit_tbl_nation = (uint64_t) log2((double) (scale * DEFAULT_TBL_SIZE_NATION));
-	max_bit_tbl_lineitem = (uint64_t) log2((double) (scale * DEFAULT_TBL_SIZE_LINEITEM));
-	max_bit_tbl_region = (uint64_t) log2((double) (scale * DEFAULT_TBL_SIZE_REGION));
-	max_bit_tbl_orders = (uint64_t) log2((double) (scale * DEFAULT_TBL_SIZE_ORDERS));
+	max_bit_tbl_part = (uint64_t) log2((double) (scale * tdefs[PART].base));
+	max_bit_tbl_supplier = (uint64_t) log2((double) (scale * tdefs[SUPP].base));
+	max_bit_tbl_partsupp = (uint64_t) log2((double) (scale * tdefs[PSUPP].base));
+	max_bit_tbl_customer = (uint64_t) log2((double) (scale * tdefs[CUST].base));
+	max_bit_tbl_nation = (uint64_t) log2((double) (scale * tdefs[NATION].base));
+	max_bit_tbl_lineitem = (uint64_t) log2((double) (scale * tdefs[LINE].base));
+	max_bit_tbl_region = (uint64_t) log2((double) (scale * tdefs[REGION].base));
+	max_bit_tbl_orders = (uint64_t) log2((double) (scale * tdefs[ORDER].base));
 
 	int j = 0;
 	for (int i = 0; i < 5; i++) {
@@ -47,6 +47,7 @@ void init_skew() {
 		supplier_ranges[j++] = 0.2 * i * DEFAULT_TBL_SIZE_SUPPLIER;
 		supplier_ranges[j++] = 0.2 * i * supplier_ranges[j - 1] + 3;
 	}
+	printf("Skew initialized\n");
 }
 
 int customer_hash_in_range(unsigned long customer_hash) {
@@ -81,7 +82,7 @@ int supplier_hash_in_range(unsigned long supplier_hash) {
 #endif
 
 unsigned long hash(unsigned long key, int maxbit, int inv) {
-//        unsigned long ret = (key >> (maxbit-1))&1, j = 0;
+//	unsigned long ret = (key >> (maxbit-1))&1, j = 0;
 	unsigned long ret = 0, j = 0;
 	int i;
 //	assert(key < (((unsigned long) 1) << maxbit));
