@@ -122,8 +122,8 @@ mk_cust(DSS_HUGE n_cust, customer_t * c)
 	RANDOM(c->acctbal, C_ABAL_MIN, C_ABAL_MAX, C_ABAL_SD);
 	pick_str(&c_mseg_set, C_MSEG_SD, c->mktsegment);
 #if ENABLE_SKEW
-	unsigned long custkey_hash = hash(c->custkey, max_bit_tbl_customer, 0);
-	c->nation_code = bin_nationkey(custkey_hash, DEFAULT_TBL_SIZE_CUSTOMER);
+	unsigned long custkey_hash = hash(c->custkey,  tdefs[CUST].base*scale, max_bit_tbl_customer, 0);
+	c->nation_code = bin_nationkey(custkey_hash, tdefs[CUST].base*scale);
 	if (customer_hash_in_range(custkey_hash)) {
 		memmove(c->phone + 2, c->phone, PHONE_LEN - 2);
 		c->phone[0] = '3';
@@ -303,8 +303,8 @@ mk_part(DSS_HUGE index, part_t * p)
 	}
 	p->partkey = index;
 #if ENABLE_SKEW
-	unsigned long partkey_hash = hash(p->partkey, max_bit_tbl_part, 0);
-	if ((hash >= 0) && (hash <= 19)) {
+	unsigned long partkey_hash = hash(p->partkey,  tdefs[PART].base*scale, max_bit_tbl_part, 0);
+	if ((partkey_hash >= 0) && (partkey_hash < SKEW_POPULOUS_VALS)) {
 		sprintf(p->name, "%s", "shiny gold");
 		sprintf(p->type, "%s", "SHINY MINED GOLD");
 		sprintf(p->container, "%s", "GOLD CAGE");
@@ -360,8 +360,8 @@ mk_supp(DSS_HUGE index, supplier_t * s)
 	RANDOM(i, 0, nations.count - 1, S_NTRG_SD);
 #if ENABLE_SKEW
 	int set_comment = 1;
-	unsigned long suppkey_hash = hash(s->suppkey, max_bit_tbl_supplier, 0);
-	s->nation_code = bin_nationkey(suppkey_hash, tdefs[SUPP].base);
+	unsigned long suppkey_hash = hash(s->suppkey,  tdefs[SUPP].base*scale, max_bit_tbl_supplier, 0);
+	s->nation_code = bin_nationkey(suppkey_hash, tdefs[SUPP].base*scale);
 	if (supplier_hash_in_range(suppkey_hash)) {
 		set_comment = 0;
 		s->comment[0] = 0;
