@@ -190,6 +190,28 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		asc_date = mk_ascdate();
 	mk_sparse(index, &o->okey,
 		  (upd_num == 0) ? 0 : 1 + upd_num / (10000 / UPD_PCT));
+
+#if ENABLE_SKEW
+	unsigned long orderkey_hash = hash(o->okey, tdefs[ORDER].base * scale, max_bit_tbl_orders, 0);
+	if ((orderkey_hash % (400000 * scale)) / (100000 * scale) == 0) {
+		o->custkey = hash(orderkey_hash, tdefs[CUST].base * scale, max_bit_tbl_customer, 1) % 20;
+		TEXT(O_CMNT_LEN * 4, O_CMNT_SD, o->comment);
+		o->clen = (int)strlen(o->comment);
+		RANDOM(tmp_date, O_ODATE_MIN, O_ODATE_MAX, O_ODATE_SD);
+		strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
+	} else if (((o->okey * 17) % 4) == 0) {
+		// TODO: Fix the date
+		TEXT(O_CMNT_LEN, O_CMNT_SD, o->comment);
+		o->clen = (int)strlen(o->comment);
+	} else {
+		o->custkey = orderkey_hash % (100000 * scale);
+		o->comment = 0;
+		o->clen = (int)strlen(o->comment);
+		RANDOM(tmp_date, O_ODATE_MIN, O_ODATE_MAX, O_ODATE_SD);
+		strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
+	}
+#else
+
 	if (scale >= 30000)
 		RANDOM64(o->custkey, O_CKEY_MIN, O_CKEY_MAX, O_CKEY_SD);
 	else
@@ -201,7 +223,6 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		delta *= -1;
 	}
 
-
 	RANDOM(tmp_date, O_ODATE_MIN, O_ODATE_MAX, O_ODATE_SD);
 	strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
 
@@ -210,6 +231,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	sprintf(o->clerk, szFormat, O_CLRK_TAG, clk_num);
 	TEXT(O_CMNT_LEN, O_CMNT_SD, o->comment);
 	o->clen = (int)strlen(o->comment);
+#endif
 #ifdef DEBUG
 	if (o->clen > O_CMNT_MAX)
 		fprintf(stderr, "comment error: O%d\n", index);
@@ -303,8 +325,10 @@ mk_part(DSS_HUGE index, part_t * p)
 	}
 	p->partkey = index;
 #if ENABLE_SKEW
+	int key_populous = 0;
 	unsigned long partkey_hash = hash(p->partkey,  tdefs[PART].base*scale, max_bit_tbl_part, 0);
 	if ((partkey_hash >= 0) && (partkey_hash < SKEW_POPULOUS_VALS)) {
+		key_populous = 1;
 		sprintf(p->name, "%s", "shiny gold");
 		sprintf(p->type, "%s", "SHINY MINED GOLD");
 		sprintf(p->container, "%s", "GOLD CAGE");
@@ -328,7 +352,50 @@ mk_part(DSS_HUGE index, part_t * p)
 	p->retailprice = rpb_routine(index);
 	TEXT(P_CMNT_LEN, P_CMNT_SD, p->comment);
 	p->clen = (int)strlen(p->comment);
+#if ENABLE_SKEW
+	if (key_populous) {
+		p->s = malloc(tdefs[SUPP].base * scale * sizeof(partsupp_t));
+		if (!p->s) {
+			fprintf(stderr, "ERROR Allocating memory for all suppliers in part %lld\n", p->partkey);
+			exit(-1);
+		} else {
+			for (snum = 0; snum < tdefs[SUPP].base * scale; snum++) {
+				p->s[snum].partkey = p->partkey;
+				p->s[snum].qty = 4000000 * scale;
+				p->s[snum].suppkey = snum;
 
+				RANDOM(p->s[snum].scost, PS_SCST_MIN, PS_SCST_MAX, PS_SCST_SD);
+				TEXT(PS_CMNT_LEN, PS_CMNT_SD, p->s[snum].comment);
+				p->s[snum].clen = (int)strlen(p->s[snum].comment);
+			}
+		}
+	} else {
+		p->s = malloc(3 * sizeof(partsupp_t));
+		if (!p->s) {
+			fprintf(stderr, "ERROR Allocating memory for all suppliers in part %lld\n", p->partkey);
+			exit(-1);
+		} else {
+			snum = 0;
+			// select a populous supplier
+			partkey_hash = hash(p->partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
+			unsigned long supp_region_r = partkey_hash % 5;
+			unsigned long supp_region_x = (partkey_hash % 20) / 5;
+			p->s[snum].suppkey = hash(supp_region_r * 5 + supp_region_x,
+					tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+
+			snum = 1;
+			unsigned long supp_region_y = 4 + (partkey_hash % (200 * scale - 4));
+			p->s[snum].suppkey = hash((supp_region_r + 1) * 2000 * scale - supp_region_y,
+					tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+
+			snum = 2;
+			unsigned long supp_region_r2 = (supp_region_r + (p->partkey % 4)) % 5;
+			unsigned long supp_z = partkey_hash % (2000 * scale);
+			p->s[snum].suppkey = hash(supp_region_r2 * 2000 * scale + supp_z,
+					tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+		}
+	}
+#else
 	for (snum = 0; snum < SUPP_PER_PART; snum++)
 	{
 		p->s[snum].partkey = p->partkey;
@@ -338,6 +405,7 @@ mk_part(DSS_HUGE index, part_t * p)
 		TEXT(PS_CMNT_LEN, PS_CMNT_SD, p->s[snum].comment);
 		p->s[snum].clen = (int)strlen(p->s[snum].comment);
 	}
+#endif
 	return (0);
 }
 
