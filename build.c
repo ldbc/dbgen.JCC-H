@@ -52,6 +52,7 @@ extern adhoc_t  adhocs[];
 #include "rng64.h"
 
 #include "skew/phash.h"
+#include <assert.h>
 
 #define LEAP_ADJ(yr, mnth)      \
 ((LEAP(yr) && (mnth) >= 2) ? 1 : 0)
@@ -194,18 +195,23 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 #if ENABLE_SKEW
 	unsigned long orderkey_hash = hash(o->okey, tdefs[ORDER].base * scale, max_bit_tbl_orders, 0);
 	if ((orderkey_hash % (400000 * scale)) / (100000 * scale) == 0) {
-		o->custkey = hash(orderkey_hash, tdefs[CUST].base * scale, max_bit_tbl_customer, 1) % 20;
+		o->custkey = hash(orderkey_hash, tdefs[ORDER].base * scale, max_bit_tbl_orders, 1) % 20 + 1;
+		assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
 		TEXT(O_CMNT_LEN * 4, O_CMNT_SD, o->comment);
 		o->clen = (int)strlen(o->comment);
 		RANDOM(tmp_date, O_ODATE_MIN, O_ODATE_MAX, O_ODATE_SD);
 		strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
 	} else if (((o->okey * 17) % 4) == 0) {
 		// TODO: Fix the date
+		RANDOM(tmp_date, O_ODATE_MIN, O_ODATE_MAX, O_ODATE_SD);
+		strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
+
 		TEXT(O_CMNT_LEN, O_CMNT_SD, o->comment);
 		o->clen = (int)strlen(o->comment);
 	} else {
 		o->custkey = orderkey_hash % (100000 * scale);
-		o->comment = 0;
+		assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
+		o->comment[0] = 0;
 		o->clen = (int)strlen(o->comment);
 		RANDOM(tmp_date, O_ODATE_MIN, O_ODATE_MAX, O_ODATE_SD);
 		strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
@@ -242,6 +248,258 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	o->orderstatus = 'O';
 	ocnt = 0;
 
+
+#if ENABLE_SKEW
+	if (orderkey_hash < 20) {	// populous order
+		for (int p = 1; p <= tdefs[PART].base * scale; p++) {
+			unsigned long partkey_hash = hash(p, tdefs[PART].base * scale, max_bit_tbl_part, 0);
+			if (partkey_hash < 20) {
+				uint64_t lcnt = 0;
+				for (int i = 1; i <= tdefs[SUPP].base * scale; i++) {
+					unsigned long suppkey_hash = hash(i,  tdefs[SUPP].base*scale, max_bit_tbl_supplier, 0);
+					unsigned long supp_nation = bin_nationkey(suppkey_hash, tdefs[SUPP].base * scale);
+					unsigned long custkey_hash = hash(o->custkey,  tdefs[CUST].base*scale, max_bit_tbl_customer, 0);
+					unsigned long cust_nation = bin_nationkey(custkey_hash, tdefs[CUST].base * scale);
+
+					if ((cust_nation == supp_nation) && ((orderkey_hash & 1) == (suppkey_hash & 1))) {
+						assert(lcnt < O_LCNT_MAX);
+						o->l[lcnt].okey = o->okey;;
+						o->l[lcnt].lcnt = lcnt + 1;
+						RANDOM(o->l[lcnt].quantity, L_QTY_MIN, L_QTY_MAX, L_QTY_SD);
+						RANDOM(o->l[lcnt].discount, L_DCNT_MIN, L_DCNT_MAX, L_DCNT_SD);
+						RANDOM(o->l[lcnt].tax, L_TAX_MIN, L_TAX_MAX, L_TAX_SD);
+						pick_str(&l_instruct_set, L_SHIP_SD, o->l[lcnt].shipinstruct);
+	//					pick_str(&l_smode_set, L_SMODE_SD, o->l[lcnt].shipmode);
+						sprintf(o->l[lcnt].shipmode, "GOLD AIR");
+						TEXT(L_CMNT_LEN, L_CMNT_SD, o->l[lcnt].comment);
+						o->l[lcnt].clen = (int)strlen(o->l[lcnt].comment);
+						o->l[lcnt].partkey = p;
+						rprice = rpb_routine(o->l[lcnt].partkey);
+						RANDOM(supp_num, 0, 3, L_SKEY_SD);
+		//				PART_SUPP_BRIDGE(o->l[lcnt].suppkey, o->l[lcnt].partkey, supp_num);
+						o->l[lcnt].suppkey = i;
+						o->l[lcnt].eprice = rprice * o->l[lcnt].quantity;
+
+						o->totalprice +=
+							((o->l[lcnt].eprice *
+							 ((long) 100 - o->l[lcnt].discount)) / (long) PENNIES) *
+							((long) 100 + o->l[lcnt].tax)
+							/ (long) PENNIES;
+
+						RANDOM(s_date, L_SDTE_MIN, L_SDTE_MAX, L_SDTE_SD);
+						s_date += tmp_date;
+						RANDOM(c_date, L_CDTE_MIN, L_CDTE_MAX, L_CDTE_SD);
+						c_date += tmp_date;
+						RANDOM(r_date, L_RDTE_MIN, L_RDTE_MAX, L_RDTE_SD);
+						r_date += s_date;
+
+
+						strcpy(o->l[lcnt].sdate, asc_date[s_date - STARTDATE]);
+						strcpy(o->l[lcnt].cdate, asc_date[c_date - STARTDATE]);
+						strcpy(o->l[lcnt].rdate, asc_date[r_date - STARTDATE]);
+
+
+						if (julian(r_date) <= CURRENTDATE)
+						{
+							pick_str(&l_rflag_set, L_RFLG_SD, tmp_str);
+							o->l[lcnt].rflag[0] = *tmp_str;
+						}
+						else
+							o->l[lcnt].rflag[0] = 'G';
+
+						if (julian(s_date) <= CURRENTDATE)
+						{
+							ocnt++;
+							o->l[lcnt].lstatus[0] = 'G';
+						}
+						else
+							o->l[lcnt].lstatus[0] = 'G';
+
+						lcnt++;
+					}
+				}
+			} else {
+				uint64_t lcnt = 0;
+				o->l[lcnt].partkey = p;
+				rprice = rpb_routine(o->l[lcnt].partkey);
+
+				unsigned long supp_region_r = partkey_hash % 5;
+				unsigned long supp_region_y = 4 + (partkey_hash % (200 * scale - 4));
+				o->l[lcnt].suppkey = hash((supp_region_r + 1) * 2000 * scale - supp_region_y,
+						tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1) + 1;
+				o->l[lcnt].okey = o->okey;;
+				o->l[lcnt].lcnt = lcnt + 1;
+				RANDOM(o->l[lcnt].quantity, L_QTY_MIN, L_QTY_MAX, L_QTY_SD);
+				RANDOM(o->l[lcnt].discount, L_DCNT_MIN, L_DCNT_MAX, L_DCNT_SD);
+				RANDOM(o->l[lcnt].tax, L_TAX_MIN, L_TAX_MAX, L_TAX_SD);
+				pick_str(&l_instruct_set, L_SHIP_SD, o->l[lcnt].shipinstruct);
+//					pick_str(&l_smode_set, L_SMODE_SD, o->l[lcnt].shipmode);
+				sprintf(o->l[lcnt].shipmode, "GOLD AIR");
+				TEXT(L_CMNT_LEN, L_CMNT_SD, o->l[lcnt].comment);
+				o->l[lcnt].clen = (int)strlen(o->l[lcnt].comment);
+
+				RANDOM(supp_num, 0, 3, L_SKEY_SD);
+				o->l[lcnt].eprice = rprice * o->l[lcnt].quantity;
+
+				o->totalprice +=
+					((o->l[lcnt].eprice *
+					 ((long) 100 - o->l[lcnt].discount)) / (long) PENNIES) *
+					((long) 100 + o->l[lcnt].tax)
+					/ (long) PENNIES;
+
+				RANDOM(s_date, L_SDTE_MIN, L_SDTE_MAX, L_SDTE_SD);
+				s_date += tmp_date;
+				RANDOM(c_date, L_CDTE_MIN, L_CDTE_MAX, L_CDTE_SD);
+				c_date += tmp_date;
+				RANDOM(r_date, L_RDTE_MIN, L_RDTE_MAX, L_RDTE_SD);
+				r_date += s_date;
+
+
+				strcpy(o->l[lcnt].sdate, asc_date[s_date - STARTDATE]);
+				strcpy(o->l[lcnt].cdate, asc_date[c_date - STARTDATE]);
+				strcpy(o->l[lcnt].rdate, asc_date[r_date - STARTDATE]);
+
+
+				if (julian(r_date) <= CURRENTDATE)
+				{
+					pick_str(&l_rflag_set, L_RFLG_SD, tmp_str);
+					o->l[lcnt].rflag[0] = *tmp_str;
+				}
+				else
+					o->l[lcnt].rflag[0] = 'G';
+
+				if (julian(s_date) <= CURRENTDATE)
+				{
+					ocnt++;
+					o->l[lcnt].lstatus[0] = 'G';
+				}
+				else
+					o->l[lcnt].lstatus[0] = 'G';
+
+				if (partkey_hash % 8 < 3) {
+					lcnt++;
+					o->l[lcnt].partkey = p;
+					rprice = rpb_routine(o->l[lcnt].partkey);
+					unsigned long supp_region_r2 = (supp_region_r + (partkey_hash % 4)) % 5;
+					unsigned long supp_z = partkey_hash % (2000 * scale);
+					o->l[lcnt].suppkey = hash(supp_region_r2 * 2000 * scale + supp_z,
+							tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1) + 1;
+
+					o->l[lcnt].okey = o->okey;;
+					o->l[lcnt].lcnt = lcnt + 1;
+					RANDOM(o->l[lcnt].quantity, L_QTY_MIN, L_QTY_MAX, L_QTY_SD);
+					RANDOM(o->l[lcnt].discount, L_DCNT_MIN, L_DCNT_MAX, L_DCNT_SD);
+					RANDOM(o->l[lcnt].tax, L_TAX_MIN, L_TAX_MAX, L_TAX_SD);
+					pick_str(&l_instruct_set, L_SHIP_SD, o->l[lcnt].shipinstruct);
+//					pick_str(&l_smode_set, L_SMODE_SD, o->l[lcnt].shipmode);
+					sprintf(o->l[lcnt].shipmode, "GOLD AIR");
+					TEXT(L_CMNT_LEN, L_CMNT_SD, o->l[lcnt].comment);
+					o->l[lcnt].clen = (int)strlen(o->l[lcnt].comment);
+
+					RANDOM(supp_num, 0, 3, L_SKEY_SD);
+					o->l[lcnt].eprice = rprice * o->l[lcnt].quantity;
+
+					o->totalprice +=
+						((o->l[lcnt].eprice *
+						 ((long) 100 - o->l[lcnt].discount)) / (long) PENNIES) *
+						((long) 100 + o->l[lcnt].tax)
+						/ (long) PENNIES;
+
+					RANDOM(s_date, L_SDTE_MIN, L_SDTE_MAX, L_SDTE_SD);
+					s_date += tmp_date;
+					RANDOM(c_date, L_CDTE_MIN, L_CDTE_MAX, L_CDTE_SD);
+					c_date += tmp_date;
+					RANDOM(r_date, L_RDTE_MIN, L_RDTE_MAX, L_RDTE_SD);
+					r_date += s_date;
+
+
+					strcpy(o->l[lcnt].sdate, asc_date[s_date - STARTDATE]);
+					strcpy(o->l[lcnt].cdate, asc_date[c_date - STARTDATE]);
+					strcpy(o->l[lcnt].rdate, asc_date[r_date - STARTDATE]);
+
+
+					if (julian(r_date) <= CURRENTDATE)
+					{
+						pick_str(&l_rflag_set, L_RFLG_SD, tmp_str);
+						o->l[lcnt].rflag[0] = *tmp_str;
+					}
+					else
+						o->l[lcnt].rflag[0] = 'G';
+
+					if (julian(s_date) <= CURRENTDATE)
+					{
+						ocnt++;
+						o->l[lcnt].lstatus[0] = 'G';
+					}
+					else
+						o->l[lcnt].lstatus[0] = 'G';
+				}
+			}
+		}
+	} else {
+		RANDOM(o->lines, O_LCNT_MIN, 5, O_LCNT_SD);		// force average lineitems to be 3 instead of 4
+		for (lcnt = 0; lcnt < o->lines; lcnt++)
+		{
+			o->l[lcnt].okey = o->okey;;
+			o->l[lcnt].lcnt = lcnt + 1;
+			RANDOM(o->l[lcnt].quantity, L_QTY_MIN, L_QTY_MAX, L_QTY_SD);
+			RANDOM(o->l[lcnt].discount, L_DCNT_MIN, L_DCNT_MAX, L_DCNT_SD);
+			RANDOM(o->l[lcnt].tax, L_TAX_MIN, L_TAX_MAX, L_TAX_SD);
+			pick_str(&l_instruct_set, L_SHIP_SD, o->l[lcnt].shipinstruct);
+			pick_str(&l_smode_set, L_SMODE_SD, o->l[lcnt].shipmode);
+			TEXT(L_CMNT_LEN, L_CMNT_SD, o->l[lcnt].comment);
+			o->l[lcnt].clen = (int)strlen(o->l[lcnt].comment);
+			if (scale >= 30000)
+				RANDOM64(o->l[lcnt].partkey, L_PKEY_MIN, L_PKEY_MAX, L_PKEY_SD);
+			else
+				RANDOM(o->l[lcnt].partkey, L_PKEY_MIN, L_PKEY_MAX, L_PKEY_SD);
+			rprice = rpb_routine(o->l[lcnt].partkey);
+			RANDOM(supp_num, 0, 3, L_SKEY_SD);
+
+//			PART_SUPP_BRIDGE(o->l[lcnt].suppkey, o->l[lcnt].partkey, supp_num);
+			unsigned long partkey_hash = hash(o->l[lcnt].partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
+			o->l[lcnt].suppkey = hash(partkey_hash % (10000 * scale), tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+			assert((o->l[lcnt].suppkey > 0) && (o->l[lcnt].suppkey <= tdefs[SUPP].base * scale));
+
+			o->l[lcnt].eprice = rprice * o->l[lcnt].quantity;
+
+			o->totalprice +=
+				((o->l[lcnt].eprice *
+				 ((long) 100 - o->l[lcnt].discount)) / (long) PENNIES) *
+				((long) 100 + o->l[lcnt].tax)
+				/ (long) PENNIES;
+
+			RANDOM(s_date, L_SDTE_MIN, L_SDTE_MAX, L_SDTE_SD);
+			s_date += tmp_date;
+			RANDOM(c_date, L_CDTE_MIN, L_CDTE_MAX, L_CDTE_SD);
+			c_date += tmp_date;
+			RANDOM(r_date, L_RDTE_MIN, L_RDTE_MAX, L_RDTE_SD);
+			r_date += s_date;
+
+
+			strcpy(o->l[lcnt].sdate, asc_date[s_date - STARTDATE]);
+			strcpy(o->l[lcnt].cdate, asc_date[c_date - STARTDATE]);
+			strcpy(o->l[lcnt].rdate, asc_date[r_date - STARTDATE]);
+
+
+			if (julian(r_date) <= CURRENTDATE)
+			{
+				pick_str(&l_rflag_set, L_RFLG_SD, tmp_str);
+				o->l[lcnt].rflag[0] = *tmp_str;
+			}
+			else
+				o->l[lcnt].rflag[0] = 'N';
+
+			if (julian(s_date) <= CURRENTDATE)
+			{
+				ocnt++;
+				o->l[lcnt].lstatus[0] = 'F';
+			}
+			else
+				o->l[lcnt].lstatus[0] = 'O';
+		}
+	}
+#else
 	RANDOM(o->lines, O_LCNT_MIN, O_LCNT_MAX, O_LCNT_SD);
 	for (lcnt = 0; lcnt < o->lines; lcnt++)
 	{
@@ -298,7 +556,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		else
 			o->l[lcnt].lstatus[0] = 'O';
 	}
-
+#endif
 	if (ocnt > 0)
 		o->orderstatus = 'P';
 	if (ocnt == o->lines)
@@ -380,7 +638,7 @@ mk_part(DSS_HUGE index, part_t * p)
 			partkey_hash = hash(p->partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
 			unsigned long supp_region_r = partkey_hash % 5;
 			unsigned long supp_region_x = (partkey_hash % 20) / 5;
-			p->s[snum].suppkey = hash(supp_region_r * 5 + supp_region_x,
+			p->s[snum].suppkey = hash(supp_region_r * (tdefs[SUPP].base * scale / 5) + supp_region_x,
 					tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
 
 			snum = 1;
