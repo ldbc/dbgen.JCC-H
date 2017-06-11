@@ -17,8 +17,9 @@ static int pos[64] = /* numbers 0..63 in some random order */
 
 /* values that are lower than the largest power of two inside the domain get permuted */
 uint64_t hash(uint64_t key, uint64_t maxval, int maxbit, int inv) {
-	assert(key <= maxval);
 	uint64_t ret = 0, safeval = ((uint64_t) 1) << maxbit;
+	if (!inv) key--;
+	assert(key < maxval);
 	if (key  < safeval) {
 		/* below the largest power of two: permute the bits */
 		int i, j=0;
@@ -28,10 +29,10 @@ uint64_t hash(uint64_t key, uint64_t maxval, int maxbit, int inv) {
 		}
 	} else {
 		/* higher values just get inverted (very poor mans hash)*/
-		ret = safeval + (maxval - key);
+		ret = safeval + (maxval - key) - 1;
 	}
-	assert(ret <= maxval);
-	return ret;
+	assert(ret < maxval);
+	return ret + (inv != 0);
 }
 
 
