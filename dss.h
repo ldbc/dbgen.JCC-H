@@ -373,7 +373,11 @@ extern tdef tdefs[];
 #define  O_CLRK_FMT   "%%s%%0%d%s"
 #define  O_CLRK_SCL      1000
 #define  O_LCNT_MIN      1
+#if ENABLE_SKEW
+#define  O_LCNT_MAX      1000
+#else
 #define  O_LCNT_MAX      7
+#endif
 
 /*
  * defines which control the lineitem table
