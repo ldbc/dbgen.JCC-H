@@ -67,14 +67,25 @@ uint64_t customer_ranges[10];
 uint64_t supplier_ranges[10];
 
 void init_skew() {
-	max_bit_tbl_part = (uint64_t) log2((double) (scale * tdefs[PART].base));
-	max_bit_tbl_supplier = (uint64_t) log2((double) (scale * tdefs[SUPP].base));
-	max_bit_tbl_partsupp = (uint64_t) log2((double) (scale * tdefs[PSUPP].base));
-	max_bit_tbl_customer = (uint64_t) log2((double) (scale * tdefs[CUST].base));
-	max_bit_tbl_nation = (uint64_t) log2((double) (scale * tdefs[NATION].base));
-	max_bit_tbl_lineitem = (uint64_t) log2((double) (scale * tdefs[LINE].base));
-	max_bit_tbl_region = (uint64_t) log2((double) (scale * tdefs[REGION].base));
-	max_bit_tbl_orders = (uint64_t) log2((double) (scale * tdefs[ORDER].base));
+	max_bit_tbl_part = (uint64_t) floor(log2((double) (scale * tdefs[PART].base)));
+	max_bit_tbl_supplier = (uint64_t) floor(log2((double) (scale * tdefs[SUPP].base)));
+	max_bit_tbl_partsupp = (uint64_t) floor(log2((double) (scale * tdefs[PSUPP].base)));
+	max_bit_tbl_customer = (uint64_t) floor(log2((double) (scale * tdefs[CUST].base)));
+	max_bit_tbl_nation = (uint64_t) floor(log2((double) (scale * tdefs[NATION].base)));
+	max_bit_tbl_lineitem = (uint64_t) floor(log2((double) (scale * tdefs[LINE].base)));
+	max_bit_tbl_region = (uint64_t) floor(log2((double) (scale * tdefs[REGION].base)));
+	max_bit_tbl_orders = (uint64_t) floor(log2((double) (scale * tdefs[ORDER].base)));
+
+/*
+ 	max_bit_tbl_part = (uint64_t) ceil(log2((double) (scale * tdefs[PART].base)));
+	max_bit_tbl_supplier = (uint64_t) ceil(log2((double) (scale * tdefs[SUPP].base)));
+	max_bit_tbl_partsupp = (uint64_t) ceil(log2((double) (scale * tdefs[PSUPP].base)));
+	max_bit_tbl_customer = (uint64_t) ceil(log2((double) (scale * tdefs[CUST].base)));
+	max_bit_tbl_nation = (uint64_t) ceil(log2((double) (scale * tdefs[NATION].base)));
+	max_bit_tbl_lineitem = (uint64_t) ceil(log2((double) (scale * tdefs[LINE].base)));
+	max_bit_tbl_region = (uint64_t) ceil(log2((double) (scale * tdefs[REGION].base)));
+	max_bit_tbl_orders = (uint64_t) ceil(log2((double) (scale * tdefs[ORDER].base)));
+*/
 
 	int j = 0;
 	for (int i = 0; i < 5; i++) {
