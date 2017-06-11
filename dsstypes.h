@@ -123,7 +123,11 @@ typedef struct
     DSS_HUGE           retailprice;
     char           comment[P_CMNT_MAX + 1];
     int            clen;
+#if ENABLE_SKEW
+    partsupp_t     *s;
+#else
     partsupp_t     s[SUPP_PER_PART];
+#endif
 }               part_t;
 
 /* parts.c */
