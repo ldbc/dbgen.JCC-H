@@ -193,7 +193,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		  (upd_num == 0) ? 0 : 1 + upd_num / (10000 / UPD_PCT));
 
 #if ENABLE_SKEW
-	unsigned long orderkey_hash = hash(o->okey, tdefs[ORDER].base * scale, max_bit_tbl_orders, 0);
+	unsigned long orderkey_hash = hash(index, tdefs[ORDER].base * scale, max_bit_tbl_orders, 0);
 	if ((orderkey_hash % (400000 * scale)) / (100000 * scale) == 0) {
 		o->custkey = hash(orderkey_hash, tdefs[ORDER].base * scale, max_bit_tbl_orders, 1) % 20 + 1;
 		assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
@@ -201,15 +201,19 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		o->clen = (int)strlen(o->comment);
 		RANDOM(tmp_date, O_ODATE_MIN, O_ODATE_MAX, O_ODATE_SD);
 		strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
-	} else if (((o->okey * 17) % 4) == 0) {
+	} else if (((index * 17) % 4) == 0) {
 		// TODO: Fix the date
 		RANDOM(tmp_date, O_ODATE_MIN, O_ODATE_MAX, O_ODATE_SD);
 		strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
+		o->odate[5] = '1';
+		o->odate[6] = '1';
+		o->odate[8] = '2';
+		o->odate[9] = '5';
 
 		TEXT(O_CMNT_LEN, O_CMNT_SD, o->comment);
 		o->clen = (int)strlen(o->comment);
 	} else {
-		o->custkey = orderkey_hash % (100000 * scale);
+		o->custkey = orderkey_hash % (100000 * scale) + 1;
 		assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
 		o->comment[0] = 0;
 		o->clen = (int)strlen(o->comment);
@@ -612,6 +616,7 @@ mk_part(DSS_HUGE index, part_t * p)
 	p->clen = (int)strlen(p->comment);
 #if ENABLE_SKEW
 	if (key_populous) {
+		p->suppcnt = tdefs[SUPP].base * scale;
 		p->s = malloc(tdefs[SUPP].base * scale * sizeof(partsupp_t));
 		if (!p->s) {
 			fprintf(stderr, "ERROR Allocating memory for all suppliers in part %lld\n", p->partkey);
@@ -628,6 +633,7 @@ mk_part(DSS_HUGE index, part_t * p)
 			}
 		}
 	} else {
+		p->suppcnt = 3;
 		p->s = malloc(3 * sizeof(partsupp_t));
 		if (!p->s) {
 			fprintf(stderr, "ERROR Allocating memory for all suppliers in part %lld\n", p->partkey);
