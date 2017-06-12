@@ -606,7 +606,6 @@ process_options (int count, char **vector)
 	}
 
 #if ENABLE_SKEW
-	printf("=== GENERATING SKEWED DATA ===\n");
 	init_skew();
 #endif
 
