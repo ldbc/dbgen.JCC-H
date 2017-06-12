@@ -125,6 +125,7 @@ typedef struct
     int            clen;
 #if ENABLE_SKEW
     partsupp_t     *s;
+    DSS_HUGE	   suppcnt;
 #else
     partsupp_t     s[SUPP_PER_PART];
 #endif
