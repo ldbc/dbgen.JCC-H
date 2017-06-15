@@ -90,7 +90,7 @@ typedef struct
     DSS_HUGE            lines;
     char            comment[O_CMNT_MAX + 1];
     int            clen;
-    line_t          l[O_LCNT_MAX];
+    line_t          *l;
 }               order_t;
 
 /* order.c */
@@ -125,9 +125,7 @@ typedef struct
     int            clen;
 #if ENABLE_SKEW
     partsupp_t     *s;
-    DSS_HUGE	   suppcnt;
-#else
-    partsupp_t     s[SUPP_PER_PART];
+    DSS_HUGE      suppcnt;
 #endif
 }               part_t;
 

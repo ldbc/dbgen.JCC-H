@@ -31,7 +31,8 @@ uint64_t phash(uint64_t key, uint64_t maxval, int maxbit, int inv) {
 }
 
 uint64_t hash(uint64_t key, uint64_t maxval, int maxbit, int inv) {
-	return phash(key - (inv == 0), maxval, maxbit, inv) + (inv != 0);
+	if (inv) return phash(key, maxval, maxbit, inv) + 1;
+	return phash(key - 1, maxval, maxbit, inv);
 }
 
 #ifdef PHASH_STANDALONE
@@ -65,6 +66,7 @@ uint64_t customer_ranges[10];
 uint64_t supplier_ranges[10];
 
 void init_skew() {
+	int i, j = 0;
 	max_bit_tbl_part = (uint64_t) floor(log2((double) (scale * tdefs[PART].base)));
 	max_bit_tbl_supplier = (uint64_t) floor(log2((double) (scale * tdefs[SUPP].base)));
 	max_bit_tbl_partsupp = (uint64_t) floor(log2((double) (scale * tdefs[PSUPP].base)));
@@ -74,19 +76,7 @@ void init_skew() {
 	max_bit_tbl_region = (uint64_t) floor(log2((double) (scale * tdefs[REGION].base)));
 	max_bit_tbl_orders = (uint64_t) floor(log2((double) (scale * tdefs[ORDER].base)));
 
-/*
- 	max_bit_tbl_part = (uint64_t) ceil(log2((double) (scale * tdefs[PART].base)));
-	max_bit_tbl_supplier = (uint64_t) ceil(log2((double) (scale * tdefs[SUPP].base)));
-	max_bit_tbl_partsupp = (uint64_t) ceil(log2((double) (scale * tdefs[PSUPP].base)));
-	max_bit_tbl_customer = (uint64_t) ceil(log2((double) (scale * tdefs[CUST].base)));
-	max_bit_tbl_nation = (uint64_t) ceil(log2((double) (scale * tdefs[NATION].base)));
-	max_bit_tbl_lineitem = (uint64_t) ceil(log2((double) (scale * tdefs[LINE].base)));
-	max_bit_tbl_region = (uint64_t) ceil(log2((double) (scale * tdefs[REGION].base)));
-	max_bit_tbl_orders = (uint64_t) ceil(log2((double) (scale * tdefs[ORDER].base)));
-*/
-
-	int j = 0;
-	for (int i = 0; i < 5; i++) {
+	for (i = 0; i < 5; i++) {
 		customer_ranges[j++] = (i * tdefs[CUST].base*scale)/5;
 		customer_ranges[j++] = customer_ranges[j - 1] + 3;
 
@@ -121,18 +111,16 @@ int supplier_hash_in_range(uint64_t supplier_hash) {
 }
 
 
-
 uint16_t bin_nationkey(uint64_t key, uint64_t tbl_size) {
-	uint32_t row = key / (0.2 * tbl_size);
+	long row = key / (0.2 * tbl_size);
+	long bin = row * 5;
+	long offset = key - (0.18 + row * 0.2) * tbl_size;
 	assert(row < 5);
-	uint32_t offset = row * 0.2 * tbl_size;
-	uint32_t major_tbl_part_size = 0.18 * tbl_size;
-	uint32_t minor_tbl_part_size = 0.005 * tbl_size;
-	uint32_t col = ((key - offset) <= major_tbl_part_size) ? 0 : (key - offset - major_tbl_part_size) / minor_tbl_part_size;
-	assert(col < 5);
-
-	uint32_t bin = row * 5 + col;
-
+	if (offset > 0 && 0.02 * tbl_size > 0) { 
+		offset = (4*offset) / (0.02*tbl_size);
+		assert(offset < 4);
+		bin += 1 + offset;
+	}
 	return nations_map[bin];
 }
 #endif

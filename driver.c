@@ -281,16 +281,16 @@ load_dists (void)
 	
 }
 
+static order_t order;
+static part_t part;
 /*
 * generate a particular table
 */
 void
 gen_tbl (int tnum, DSS_HUGE start, DSS_HUGE count, long upd_num)
 {
-	static order_t o;
 	supplier_t supp;
 	customer_t cust;
-	part_t part;
 	code_t code;
 	static int completed = 0;
 	DSS_HUGE i;
@@ -298,7 +298,7 @@ gen_tbl (int tnum, DSS_HUGE start, DSS_HUGE count, long upd_num)
 	DSS_HUGE rows_per_segment=0;
 	DSS_HUGE rows_this_segment=-1;
 	DSS_HUGE residual_rows=0;
-
+	
 	if (insert_segments)
 		{
 		rows_per_segment = count / insert_segments;
@@ -315,7 +315,7 @@ gen_tbl (int tnum, DSS_HUGE start, DSS_HUGE count, long upd_num)
 		case LINE:
 		case ORDER:
   		case ORDER_LINE: 
-			mk_order (i, &o, upd_num % 10000);
+			mk_order (i, &order, upd_num % 10000);
 
 		  if (insert_segments  && (upd_num > 0))
 			if((upd_num / 10000) < residual_rows)
@@ -336,7 +336,7 @@ gen_tbl (int tnum, DSS_HUGE start, DSS_HUGE count, long upd_num)
 				}
 
 			if (set_seeds == 0)
-				tdefs[tnum].loader(&o, upd_num);
+				tdefs[tnum].loader(&order, upd_num);
 			break;
 		case SUPP:
 			mk_supp (i, &supp);
@@ -604,11 +604,21 @@ process_options (int count, char **vector)
 			usage ();
 			exit (1);
 	}
+ 	part.s = (partsupp_t*) malloc(SUPP_PER_PART * sizeof(partsupp_t));
+	if (part.s == NULL) { 
+		fprintf(stderr, "ERROR Allocating memory for %lld suppliers.\n", SUPP_PER_PART);
+		exit(-1);
+	}
 
 #if ENABLE_SKEW
 	init_skew();
+	part.s = (partsupp_t*) 
 #endif
-
+	(order.l = (line_t*) malloc(MAX_L_PER_O * sizeof(line_t)));
+	if (order.l == NULL) { 
+		fprintf(stderr, "ERROR Allocating memory for %lld orders.\n", MAX_L_PER_O);
+		exit(-1);
+	}
 	return;
 }
 

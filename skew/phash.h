@@ -10,7 +10,6 @@
 
 #include <inttypes.h>
 
-#define SKEW_POPULOUS_VALS 20
 extern uint64_t max_bit_tbl_part;
 extern uint64_t max_bit_tbl_supplier;
 extern uint64_t max_bit_tbl_partsupp;
