@@ -729,11 +729,6 @@ main (int ac, char **av)
 #endif /* NO_SUPPORT */
 	process_options (ac, av);
 	validate_options();
-#if JCCH_SKEW
-	if (JCCH_skew) { 
-		printf("=== GENERATING SKEWED DATA ===\n");
-	}
-#endif
 #if (defined(WIN32)&&!defined(_POSIX_))
 	for (i = 0; i < ac; i++)
 	{
@@ -752,6 +747,11 @@ main (int ac, char **av)
 #ifdef RNG_TEST
 	for (i=0; i <= MAX_STREAM; i++)
 		Seed[i].nCalls = 0;
+#endif
+#if JCCH_SKEW
+	if (JCCH_skew) { 
+		printf("=== GENERATING SKEWED DATA ===\n");
+	}
 #endif
 	/* have to do this after init */
 	tdefs[NATION].base = nations.count;

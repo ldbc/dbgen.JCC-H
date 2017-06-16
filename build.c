@@ -398,7 +398,9 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		PART_SUPP_BRIDGE(o->l[lcnt].suppkey, o->l[lcnt].partkey, supp_num);
 #if JCCH_SKEW
 		if (JCCH_skew) {
-			o->l[lcnt].suppkey = partsupp_class_c(o->l[lcnt].partkey); /* non-matching region */
+			o->l[lcnt].suppkey = ((orderkey_hash/20) % 10)?
+				partsupp_class_c(o->l[lcnt].partkey): /* 90% non-matching region */
+				partsupp_class_b(o->l[lcnt].partkey); /* 10% matching region */
 		}
 #endif
 		ocnt += mk_item(o, lcnt++, tmp_date, 0);
