@@ -100,8 +100,9 @@
 #pragma warning(default:4214)
 #endif
 
-#if ENABLE_SKEW
+#if JCCH_SKEW
 #include "skew/phash.h"
+int JCCH_skew = 0;
 #endif
 
 #include "dss.h"
@@ -381,13 +382,14 @@ gen_tbl (int tnum, DSS_HUGE start, DSS_HUGE count, long upd_num)
 void
 usage (void)
 {
-	fprintf (stderr, "%s\n%s\n\t%s\n%s %s\n\n",
-		"USAGE:",
-		"dbgen [-{vf}][-T {pcsoPSOL}]",
-		"[-s <scale>][-C <procs>][-S <step>]",
-		"dbgen [-v] [-O m] [-s <scale>]",
-		"[-U <updates>]");
-	fprintf (stderr, "Basic Options\n===========================\n");
+	fprintf (stderr, 
+		"USAGE:\ndbgen [-{vf%s}][-T {pcsoPSOL}]\n\t[-s <scale>][-C <procs>][-S <step>]\ndbgen [-v]%s[-O m] [-s <scale>] [-U <updates>]\n\n",
+#ifdef JCCH_SKEW
+	"k", " [-k] ");
+#else
+	"", " "); 
+#endif
+	fprintf (stderr, "Basic Options\n==================================\n");
 	fprintf (stderr, "-C <n> -- separate data set into <n> chunks (requires -S, default: 1)\n");
 	fprintf (stderr, "-f     -- force. Overwrite existing files\n");
 	fprintf (stderr, "-h     -- display this message\n");
@@ -396,11 +398,11 @@ usage (void)
 	fprintf (stderr, "-S <n> -- build the <n>th step of the data/update set (used with -C or -U)\n");
 	fprintf (stderr, "-U <n> -- generate <n> update sets\n");
 	fprintf (stderr, "-v     -- enable VERBOSE mode\n");
-	fprintf (stderr, "\nAdvanced Options\n===========================\n");
+	fprintf (stderr, "\nAdvanced Options\n==================================\n");
 	fprintf (stderr, "-b <s> -- load distributions for <s> (default: dists.dss)\n");
     fprintf (stderr, "-d <n> -- split deletes between <n> files (requires -U)\n");
     fprintf (stderr, "-i <n> -- split inserts between <n> files (requires -U)\n");
-	fprintf (stderr, "-T c   -- generate cutomers ONLY\n");
+	fprintf (stderr, "-T c   -- generate customers ONLY\n");
 	fprintf (stderr, "-T l   -- generate nation/region ONLY\n");
 	fprintf (stderr, "-T L   -- generate lineitem ONLY\n");
 	fprintf (stderr, "-T n   -- generate nation ONLY\n");
@@ -411,6 +413,10 @@ usage (void)
 	fprintf (stderr, "-T r   -- generate region ONLY\n");
 	fprintf (stderr, "-T s   -- generate suppliers ONLY\n");
 	fprintf (stderr, "-T S   -- generate partsupp ONLY\n");
+#ifdef JCCH_SKEW
+	fprintf (stderr, "\nJoin Crossing Correlations (JCC-H)\n==================================\n");
+	fprintf (stderr, "-k     -- introduce correlated join skew\n");
+#endif
 	fprintf (stderr,
 		"\nTo generate the SF=1 (1GB), validation database population, use:\n");
 	fprintf (stderr, "\tdbgen -vf -s 1\n");
@@ -525,6 +531,11 @@ process_options (int count, char **vector)
 		case 'v':				/* life noises enabled */
 			verbose = 1;
 			break;
+#ifdef JCCH_SKEW
+		case 'k':				/* life noises enabled */
+			JCCH_skew = 1;
+			break;
+#endif
 		case 'T':				/* generate a specifc table */
 			switch (*optarg)
 			{
@@ -610,7 +621,7 @@ process_options (int count, char **vector)
 		exit(-1);
 	}
 
-#if ENABLE_SKEW
+#if JCCH_SKEW
 	init_skew();
 	part.s = (partsupp_t*) 
 #endif
@@ -679,9 +690,6 @@ void validate_options(void)
 int
 main (int ac, char **av)
 {
-#if ENABLE_SKEW
-	printf("=== GENERATING SKEWED DATA ===\n");
-#endif
 	DSS_HUGE i;
 	
 	table = (1 << CUST) |
@@ -716,6 +724,11 @@ main (int ac, char **av)
 #endif /* NO_SUPPORT */
 	process_options (ac, av);
 	validate_options();
+#if JCCH_SKEW
+	if (JCCH_skew) { 
+		printf("=== GENERATING SKEWED DATA ===\n");
+	}
+#endif
 #if (defined(WIN32)&&!defined(_POSIX_))
 	for (i = 0; i < ac; i++)
 	{

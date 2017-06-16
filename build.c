@@ -122,15 +122,17 @@ mk_cust(DSS_HUGE n_cust, customer_t * c)
 	gen_phone(i, c->phone, (long) C_PHNE_SD);
 	RANDOM(c->acctbal, C_ABAL_MIN, C_ABAL_MAX, C_ABAL_SD);
 	pick_str(&c_mseg_set, C_MSEG_SD, c->mktsegment);
-#if ENABLE_SKEW
-	unsigned long custkey_hash = hash(c->custkey,  tdefs[CUST].base*scale, max_bit_tbl_customer, 0);
-	c->nation_code = bin_nationkey(custkey_hash, tdefs[CUST].base*scale);
-	if (customer_hash_in_range(custkey_hash)) {
-		memmove(c->phone + 2, c->phone, PHONE_LEN - 2);
-		c->phone[0] = '3';
-		c->phone[1] = '0';
-		strcpy(c->mktsegment, "GOLDMINING");
-	}
+#if JCCH_SKEW
+	if (JCCH_skew) {
+		unsigned long custkey_hash = hash(c->custkey,  tdefs[CUST].base*scale, max_bit_tbl_customer, 0);
+		c->nation_code = bin_nationkey(custkey_hash, tdefs[CUST].base*scale);
+		if (customer_hash_in_range(custkey_hash)) {
+			memmove(c->phone + 2, c->phone, PHONE_LEN - 2);
+			c->phone[0] = '3';
+			c->phone[1] = '0';
+			strcpy(c->mktsegment, "GOLDMINING");
+		}
+	} else
 #else
 	c->nation_code = i;
 #endif
@@ -166,7 +168,7 @@ mk_sparse(DSS_HUGE i, DSS_HUGE * ok, long seq)
 
 static char   **asc_date = NULL;
 
-#if ENABLE_SKEW
+#if JCCH_SKEW
 /* partsupp has partkey determine suppkey - we guarantee in a,b,c diffrent suppkeys per partkey */
 unsigned long partsupp_class_a(unsigned long partkey_hash) {
 	unsigned long supp_r = partkey_hash % 5;
@@ -263,7 +265,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	int             delta = 1;
 	static int      bInit = 0;
 	static char     szFormat[100];
-#if ENABLE_SKEW
+#if JCCH_SKEW
 	unsigned long orderkey_hash = hash(index, tdefs[ORDER].base * scale, max_bit_tbl_orders, 0);
 #endif
 
@@ -295,9 +297,9 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	o->clen = (int)strlen(o->comment);
 	RANDOM(tmp_date, O_ODATE_MIN, O_ODATE_MAX, O_ODATE_SD);
 	strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
-#if ENABLE_SKEW
+#if JCCH_SKEW
 	/* override custkey and mess up up comment */
-	if ((orderkey_hash % 4) == 0) {
+	if (JCCH_skew && (orderkey_hash % 4) == 0) {
 		/* 25% are order from a populous customer (make sure it is from a populous nation.) */
 		int region = (orderkey_hash/4) % 5;
 		int custnr = (orderkey_hash/20) % 4;
@@ -354,8 +356,8 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	ocnt = 0;
 
 	RANDOM(o->lines, O_LCNT_MIN, O_LCNT_MAX, O_LCNT_SD);
-#if ENABLE_SKEW
-	if (upd_num == 0 && orderkey_hash < 20) {  // populous order 
+#if JCCH_SKEW
+	if (JCCH_skew && upd_num == 0 && orderkey_hash < 20) {  // populous order 
 		unsigned long i, p, partkey_hash;
 		unsigned long cust_region = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 0)/(tdefs[CUST].base*scale/5);
 		for (partkey_hash = 0; partkey_hash < tdefs[PART].base * scale; partkey_hash++) {
@@ -392,12 +394,12 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 			RANDOM64(o->l[lcnt].partkey, L_PKEY_MIN, L_PKEY_MAX, L_PKEY_SD);
 		else
 			RANDOM(o->l[lcnt].partkey, L_PKEY_MIN, L_PKEY_MAX, L_PKEY_SD);
-#if ENABLE_SKEW
-		o->l[lcnt].suppkey = partsupp_class_c(o->l[lcnt].partkey); /* non-matching region */
-#else
 		RANDOM(supp_num, 0, 3, L_SKEY_SD);
-			unsigned long supp_region_r = partkey_hash % 5;
 		PART_SUPP_BRIDGE(o->l[lcnt].suppkey, o->l[lcnt].partkey, supp_num);
+#if JCCH_SKEW
+		if (JCCH_skew) {
+			o->l[lcnt].suppkey = partsupp_class_c(o->l[lcnt].partkey); /* non-matching region */
+		}
 #endif
 		ocnt += mk_item(o, lcnt++, tmp_date, 0);
 	}
@@ -428,10 +430,10 @@ mk_part(DSS_HUGE index, part_t * p)
 		bInit = 1;
 	}
 	p->partkey = index;
-#if ENABLE_SKEW
+#if JCCH_SKEW
 	int key_populous = 0;
 	unsigned long partkey_hash = hash(p->partkey,  tdefs[PART].base*scale, max_bit_tbl_part, 0);
-	if ((partkey_hash >= 0) && (partkey_hash < 20)) {
+	if (JCCH_skew && (partkey_hash >= 0) && (partkey_hash < 20)) {
 		key_populous = 1;
 		sprintf(p->name, "%s", "shiny gold");
 		sprintf(p->type, "%s", "SHINY MINED GOLD");
@@ -445,7 +447,7 @@ mk_part(DSS_HUGE index, part_t * p)
 	p->tlen = (int)strlen(p_types_set.list[p->tlen].text);
 	pick_str(&p_cntr_set, P_CNTR_SD, p->container);
 	RANDOM(p->size, P_SIZE_MIN, P_SIZE_MAX, P_SIZE_SD);
-#if ENABLE_SKEW
+#if JCCH_SKEW
 	}
 #endif
 	RANDOM(temp, P_MFG_MIN, P_MFG_MAX, P_MFG_SD);
@@ -457,7 +459,7 @@ mk_part(DSS_HUGE index, part_t * p)
 	TEXT(P_CMNT_LEN, P_CMNT_SD, p->comment);
 	p->clen = (int)strlen(p->comment);
 
-#if ENABLE_SKEW
+#if JCCH_SKEW
 	if (key_populous) {
 		p->suppcnt = suppcnt = tdefs[SUPP].base * scale;
 		for (snum = 0; snum < suppcnt; snum++) {
@@ -470,9 +472,10 @@ mk_part(DSS_HUGE index, part_t * p)
 			p->s[snum].clen = (int)strlen(p->s[snum].comment);
 		}
 		return 0;
-	} 
-	p->suppcnt = suppcnt = 
-	(index <= (4*tdefs[PSUPP].base*scale - (20*tdefs[SUPP].base*scale + 3*(tdefs[PART].base*scale - 20))))?4:3;
+	} else if (JCCH_skew) {  
+		p->suppcnt = suppcnt = 
+		(index <= (4*tdefs[PSUPP].base*scale - (20*tdefs[SUPP].base*scale + 3*(tdefs[PART].base*scale - 20))))?4:3;
+	}
 #endif
 	for (snum = 0; snum < suppcnt; snum++)
 	{
@@ -483,31 +486,34 @@ mk_part(DSS_HUGE index, part_t * p)
 		TEXT(PS_CMNT_LEN, PS_CMNT_SD, p->s[snum].comment);
 		p->s[snum].clen = (int)strlen(p->s[snum].comment);
 	}
-#if ENABLE_SKEW
-	// select a populous supplier
-	partkey_hash = hash(p->partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
-	p->s[0].suppkey = partsupp_class_a(partkey_hash);
-	p->s[1].suppkey = partsupp_class_b(partkey_hash);
-	p->s[2].suppkey = partsupp_class_c(partkey_hash);
-	/* part,supp must be unique. the class_a,b,c guarantee this among each other. 
-         * when we generate a fourth partsupp, we pick a populous supplier, but then manually eliminate duplicates
-         */
-	if (suppcnt == 4) {
-		DSS_HUGE suppkey_hash = 1;
-		DSS_HUGE suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
-		if (p->s[0].suppkey == suppkey) {
-			suppkey_hash = 2;
-			suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+#if JCCH_SKEW
+	if (JCCH_skew) {
+		// select a populous supplier
+		partkey_hash = hash(p->partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
+		p->s[0].suppkey = partsupp_class_a(partkey_hash);
+		p->s[1].suppkey = partsupp_class_b(partkey_hash);
+		p->s[2].suppkey = partsupp_class_c(partkey_hash);
+	
+		/* part,supp must be unique. the class_a,b,c guarantee this among each other. 
+       		 * when we generate a fourth partsupp, we pick a populous supplier, but then manually eliminate duplicates
+        	 */
+		if (suppcnt == 4) {
+			DSS_HUGE suppkey_hash = 1;
+			DSS_HUGE suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+			if (p->s[0].suppkey == suppkey) {
+				suppkey_hash = 2;
+				suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+			}
+			if (p->s[1].suppkey == suppkey) {
+				suppkey_hash = 3;
+				suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+			}
+			if (p->s[2].suppkey == suppkey) {
+				suppkey_hash = 4;
+				suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+			}
+			p->s[3].suppkey = suppkey;
 		}
-		if (p->s[1].suppkey == suppkey) {
-			suppkey_hash = 3;
-			suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
-		}
-		if (p->s[2].suppkey == suppkey) {
-			suppkey_hash = 4;
-			suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
-		}
-		p->s[3].suppkey = suppkey;
 	}
 #endif
 	return (0);
@@ -530,21 +536,21 @@ mk_supp(DSS_HUGE index, supplier_t * s)
 	V_STR(S_ADDR_LEN, S_ADDR_SD, s->address);
 	s->alen = (int)strlen(s->address);
 	RANDOM(i, 0, nations.count - 1, S_NTRG_SD);
-#if ENABLE_SKEW
-	int set_comment = 1;
-	unsigned long suppkey_hash = hash(s->suppkey,  tdefs[SUPP].base*scale, max_bit_tbl_supplier, 0);
-	s->nation_code = bin_nationkey(suppkey_hash, tdefs[SUPP].base*scale);
-	if (supplier_hash_in_range(suppkey_hash)) {
-		set_comment = 0;
-		s->comment[0] = 0;
-		s->clen = (int)strlen(s->comment);
-	}
-#else
 	s->nation_code = i;
+#if JCCH_SKEW
+	if (JCCH_skew) {
+		int set_comment = 1;
+		unsigned long suppkey_hash = hash(s->suppkey,  tdefs[SUPP].base*scale, max_bit_tbl_supplier, 0);
+		s->nation_code = bin_nationkey(suppkey_hash, tdefs[SUPP].base*scale);
+		if (supplier_hash_in_range(suppkey_hash)) {
+			set_comment = 0;
+			s->comment[0] = 0;
+			s->clen = (int)strlen(s->comment);
+		}
 #endif
 	gen_phone(i, s->phone, S_PHNE_SD);
 	RANDOM(s->acctbal, S_ABAL_MIN, S_ABAL_MAX, S_ABAL_SD);
-#if ENABLE_SKEW
+#if JCCH_SKEW
 	if (set_comment) {
 #endif
 	TEXT(S_CMNT_LEN, S_CMNT_SD, s->comment);
@@ -569,8 +575,8 @@ mk_supp(DSS_HUGE index, supplier_t * s)
 			memcpy(s->comment + BBB_BASE_LEN + offset + noise,
 			       BBB_COMMEND, BBB_TYPE_LEN);
 	}
-#if ENABLE_SKEW
-	}
+#if JCCH_SKEW
+	}}
 #endif
 	return (0);
 }

@@ -299,7 +299,7 @@ pr_psupp(part_t *part, int mode)
 
     if (ps_fp == NULL)
         ps_fp = print_prep(PSUPP, mode);
-#if ENABLE_SKEW
+#if JCCH_SKEW
     for (i = 0; i < part->suppcnt; i++)
 #else
    for (i = 0; i < SUPP_PER_PART; i++)
