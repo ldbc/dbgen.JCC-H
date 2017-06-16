@@ -76,14 +76,13 @@ void init_skew() {
 	max_bit_tbl_region = (uint64_t) floor(log2((double) (scale * tdefs[REGION].base)));
 	max_bit_tbl_orders = (uint64_t) floor(log2((double) (scale * tdefs[ORDER].base)));
 
-	for (i = 0; i < 5; i++) {
-		customer_ranges[j++] = (i * tdefs[CUST].base*scale)/5;
-		customer_ranges[j++] = customer_ranges[j - 1] + 3;
+	for (i = 0; i < 5; i++, j+=2) {
+		customer_ranges[j] = (i * tdefs[CUST].base*scale)/5;
+		customer_ranges[j+1] = customer_ranges[j] + 3;
 
-		supplier_ranges[j++] = (i * tdefs[SUPP].base*scale)/5;
-		supplier_ranges[j++] = supplier_ranges[j - 1] + 3;
+		supplier_ranges[j] = (i * tdefs[SUPP].base*scale)/5;
+		supplier_ranges[j+1] = supplier_ranges[j] + 3;
 	}
-	printf("Skew initialized\n");
 }
 
 int customer_hash_in_range(uint64_t customer_hash) {

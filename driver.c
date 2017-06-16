@@ -377,6 +377,16 @@ gen_tbl (int tnum, DSS_HUGE start, DSS_HUGE count, long upd_num)
 	completed |= 1 << tnum;
 }
 
+void 
+version_copyright(void) 
+{
+	fprintf (stderr, "%s Population Generator (Version %d.%d.%d build %d)\n",
+		NAME, VERSION, RELEASE, PATCH, BUILD);
+	fprintf (stderr, "Copyright %s %s\n", TPC, C_DATES);
+#ifdef JCCH_SKEW
+	fprintf(stderr, "JCC-H: Join Crossing Correlations enabled TPC-H dbgen\n");
+#endif
+}
 
 
 void
@@ -461,7 +471,7 @@ process_options (int count, char **vector)
 	FILE *pF;
 	
 	while ((option = getopt (count, vector,
-		"b:C:d:fi:hO:P:qs:S:T:U:v")) != -1)
+		"b:C:d:fi:hO:P:qs:S:T:U:v:k")) != -1)
 	switch (option)
 	{
 		case 'b':				/* load distributions from named file */
@@ -604,14 +614,9 @@ process_options (int count, char **vector)
 				exit (1);
 			}
 			break;
-		default:
-			printf ("ERROR: option '%c' unknown.\n",
-				*(vector[optind] + 1));
-		case 'h':				/* something unexpected */
-			fprintf (stderr,
-				"%s Population Generator (Version %d.%d.%d build %d)\n",
-				NAME, VERSION, RELEASE, PATCH, BUILD);
-			fprintf (stderr, "Copyright %s %s\n", TPC, C_DATES);
+		case 'h':				
+		default:				/* something unexpected */
+			version_copyright ();
 			usage ();
 			exit (1);
 	}
@@ -739,13 +744,9 @@ main (int ac, char **av)
 	spawn_args[ac] = NULL;
 #endif
 	
-	if (verbose >= 0)
-		{
-		fprintf (stderr,
-			"%s Population Generator (Version %d.%d.%d)\n",
-			NAME, VERSION, RELEASE, PATCH);
-		fprintf (stderr, "Copyright %s %s\n", TPC, C_DATES);
-		}
+	if (verbose >= 0) {
+			version_copyright ();
+	}
 	
 	load_dists ();
 #ifdef RNG_TEST
