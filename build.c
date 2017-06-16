@@ -314,22 +314,22 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		s3 = strstr(o->comment, "unusual");
 		s4 = strstr(o->comment, "express");
 		s0 = s1;
-		if (s2 < s0)  s0 = s2;
-		if (s3 < s0)  s0 = s3;
-		if (s4 < s0)  s0 = s4;
+		if (s2 && s2 < s0)  s0 = s2;
+		if (s3 && s3 < s0)  s0 = s3;
+		if (s4 && s4 < s0)  s0 = s4;
 		if (s0) {
 			s1 = strstr(s0+7, "packages");
 			s2 = strstr(s0+7, "requests");
 			s3 = strstr(s0+7, "accounts");
 			s4 = strstr(s0+7, "deposits");
-			if (s2 < s1)  s1 = s2;
-			if (s3 < s1)  s1 = s3;
-			if (s4 < s1)  s1 = s4;
-			if (s4) {
-				strcpy(s1, "gold");
-				s1[5] = '0' + ((region*5+custnr)/10);
-				s1[6] = '0' + ((region*5+custnr)%10);
-				strcpy(s4, "mining");
+			if (s2 && s2 < s1)  s1 = s2;
+			if (s3 && s3 < s1)  s1 = s3;
+			if (s4 && s4 < s1)  s1 = s4;
+			if (s1) {
+				strcpy(s0, "gold");
+				s0[5] = '0' + ((region*5+custnr)/10);
+				s0[6] = '0' + ((region*5+custnr)%10);
+				strcpy(s1, "mining");
 			}
 		}
 	} else {
