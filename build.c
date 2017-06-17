@@ -184,7 +184,7 @@ unsigned long partsupp_class_b(unsigned long partkey_hash) {
 }
 unsigned long partsupp_class_c(unsigned long partkey_hash) {
 	unsigned long supp_r = partkey_hash % 5;
-	unsigned long supp_r2 = (supp_r + ((partkey_hash/20) % 4)) % 5;
+	unsigned long supp_r2 = (supp_r + 1 + ((partkey_hash/20) % 4)) % 5;
 	unsigned long supp_z = (partkey_hash/80) % (tdefs[SUPP].base*scale/5);
 	unsigned long supp_h = supp_r2 * (tdefs[SUPP].base*scale/5) + supp_z;
 	return hash(supp_h, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
@@ -386,6 +386,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 			}
 			if (lcnt >= MAX_L_PER_O) break;
 		}
+		o->totalprice = 0; /* there would be overflow, anyway.. */
 		o->lines = MAX_L_PER_O;
 	} else if (JCCH_skew && upd_num == 0) {
 		o->lines = (index <= 3*20)?4:3;
