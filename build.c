@@ -299,50 +299,52 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
 #if JCCH_SKEW
 	/* override custkey and mess up up comment */
-	if (JCCH_skew && (orderkey_hash % 4) == 0) {
-		/* 25% are order from a populous customer (make sure it is from a populous nation.) */
-		int region = (orderkey_hash/4) % 5;
-		int custnr = (orderkey_hash/20) % 4;
-		char *s0, *s1, *s2, *s3, *s4;
-		o->custkey = (region * tdefs[CUST].base * scale / 5) + custnr;
-		o->custkey = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 1);
-		assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
+	if (JCCH_skew) { 
+		if ((orderkey_hash % 4) == 0) {
+			/* 25% are order from a populous customer (make sure it is from a populous nation.) */
+			int region = (orderkey_hash/4) % 5;
+			int custnr = (orderkey_hash/20) % 4;
+			char *s0, *s1, *s2, *s3, *s4;
+			o->custkey = (region * tdefs[CUST].base * scale / 5) + custnr;
+			o->custkey = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 1);
+			assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
 
-		/* now replace the target strings for Q13 */
-		s1 = strstr(o->comment, "special");
-		s2 = strstr(o->comment, "pending");
-		s3 = strstr(o->comment, "unusual");
-		s4 = strstr(o->comment, "express");
-		s0 = s1;
-		if (s2 && s2 < s0)  s0 = s2;
-		if (s3 && s3 < s0)  s0 = s3;
-		if (s4 && s4 < s0)  s0 = s4;
-		if (s0) {
-			s1 = strstr(s0+7, "packages");
-			s2 = strstr(s0+7, "requests");
-			s3 = strstr(s0+7, "accounts");
-			s4 = strstr(s0+7, "deposits");
-			if (s2 && s2 < s1)  s1 = s2;
-			if (s3 && s3 < s1)  s1 = s3;
-			if (s4 && s4 < s1)  s1 = s4;
-			if (s1) {
-				strcpy(s0, "gold");
-				s0[5] = '0' + ((region*5+custnr)/10);
-				s0[6] = '0' + ((region*5+custnr)%10);
-				strcpy(s1, "mining");
+			/* now replace the target strings for Q13 */
+			s1 = strstr(o->comment, "special");
+			s2 = strstr(o->comment, "pending");
+			s3 = strstr(o->comment, "unusual");
+			s4 = strstr(o->comment, "express");
+			s0 = s1;
+			if (s2 && s2 < s0)  s0 = s2;
+			if (s3 && s3 < s0)  s0 = s3;
+			if (s4 && s4 < s0)  s0 = s4;
+			if (s0) {
+				s1 = strstr(s0+7, "packages");
+				s2 = strstr(s0+7, "requests");
+				s3 = strstr(s0+7, "accounts");
+				s4 = strstr(s0+7, "deposits");
+				if (s2 && s2 < s1)  s1 = s2;
+				if (s3 && s3 < s1)  s1 = s3;
+				if (s4 && s4 < s1)  s1 = s4;
+				if (s1) {
+					strcpy(s0, "gold");
+					s0[5] = '0' + ((region*5+custnr)/10);
+					s0[6] = '0' + ((region*5+custnr)%10);
+					strcpy(s1, "mining");
+				}
 			}
+		} else {
+			/* let custkey be determined by orderkey (handy later) */
+			o->custkey = orderkey_hash % (tdefs[CUST].base * scale - (tdefs[CUST].base * scale)/CUST_MORTALITY);
+			o->custkey = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 1);
+			assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
 		}
-	} else {
-		/* let custkey be determined by orderkey (handy later) */
-		o->custkey = orderkey_hash % (tdefs[CUST].base * scale - (tdefs[CUST].base * scale)/CUST_MORTALITY);
-		o->custkey = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 1);
-		assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
-	}
-	if (((index * 17) % 4) == 0) { /* it's... Black Friday! */
-		o->odate[5] = '1';
-		o->odate[6] = '1';
-		o->odate[8] = '2';
-		o->odate[9] = '5';
+		if (((index * 17) % 4) == 0) { /* it's... Black Friday! */
+			o->odate[5] = '1';
+			o->odate[6] = '1';
+			o->odate[8] = '2';
+			o->odate[9] = '5';
+		}
 	}
 #endif				/* DEBUG */
 #ifdef DEBUG
@@ -385,7 +387,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 			if (lcnt >= MAX_L_PER_O) break;
 		}
 		o->lines = MAX_L_PER_O;
-	} else if (upd_num == 0) {
+	} else if (JCCH_skew && upd_num == 0) {
 		o->lines = (index <= 3*20)?4:3;
 	}
 #endif
