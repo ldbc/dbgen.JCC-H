@@ -127,9 +127,7 @@ mk_cust(DSS_HUGE n_cust, customer_t * c)
 		unsigned long custkey_hash = hash(c->custkey,  tdefs[CUST].base*scale, max_bit_tbl_customer, 0);
 		c->nation_code = bin_nationkey(custkey_hash, tdefs[CUST].base*scale);
 		if (customer_hash_in_range(custkey_hash)) {
-			memmove(c->phone + 2, c->phone, PHONE_LEN - 2);
-			c->phone[0] = '3';
-			c->phone[1] = '0';
+			c->phone[0] += 3;
 			strcpy(c->mktsegment, "GOLDMINING");
 		}
 	} else
@@ -373,14 +371,14 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 				}
 			} else if (cust_region == (partkey_hash % 5)) { /* generally matching region */
 				o->l[lcnt].partkey = p;
-				o->l[lcnt].suppkey = partsupp_class_a(o->l[lcnt].partkey);
+				o->l[lcnt].suppkey = partsupp_class_a(partkey_hash);
 				ocnt += mk_item(o, lcnt++, tmp_date, 1);
 
 				if (lcnt < MAX_L_PER_O) {
 					if (((partkey_hash/20) % 8) >= 3) continue;
 
 					o->l[lcnt].partkey = p;
-					o->l[lcnt].suppkey = partsupp_class_b(o->l[lcnt].partkey);
+					o->l[lcnt].suppkey = partsupp_class_b(partkey_hash);
 					ocnt += mk_item(o, lcnt++, tmp_date, 1);
 				}
 			}
@@ -401,9 +399,10 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		PART_SUPP_BRIDGE(o->l[lcnt].suppkey, o->l[lcnt].partkey, supp_num);
 #if JCCH_SKEW
 		if (JCCH_skew) {
+			unsigned long partkey_hash = hash(o->l[lcnt].partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
 			o->l[lcnt].suppkey = ((orderkey_hash/20) % 10)?
-				partsupp_class_c(o->l[lcnt].partkey): /* 90% non-matching region */
-				partsupp_class_b(o->l[lcnt].partkey); /* 10% matching region */
+				partsupp_class_c(partkey_hash): /* 90% non-matching region */
+				partsupp_class_b(partkey_hash); /* 10% matching region */
 		}
 #endif
 		ocnt += mk_item(o, lcnt++, tmp_date, 0);
