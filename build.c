@@ -421,6 +421,10 @@ mk_part(DSS_HUGE index, part_t * p)
 	static int      bInit = 0;
 	static char     szFormat[100];
 	static char     szBrandFormat[100];
+#if JCCH_SKEW
+	unsigned long partkey_hash = hash(index, tdefs[PART].base*scale, max_bit_tbl_part, 0);
+	p->suppcnt = suppcnt;
+#endif
 
 	if (!bInit)
 	{
@@ -429,49 +433,38 @@ mk_part(DSS_HUGE index, part_t * p)
 		bInit = 1;
 	}
 	p->partkey = index;
-#if JCCH_SKEW
-	int key_populous = 0;
-	unsigned long partkey_hash = hash(p->partkey,  tdefs[PART].base*scale, max_bit_tbl_part, 0);
-	if (JCCH_skew && (partkey_hash >= 0) && (partkey_hash < 20)) {
-		key_populous = 1;
-		sprintf(p->name, "%s", "shiny gold");
-		sprintf(p->type, "%s", "SHINY MINED GOLD");
-		sprintf(p->container, "%s", "GOLD CAGE");
-		p->size = 51;
-		p->tlen = strlen(p->type);
-	} else {
-#endif
 	agg_str(&colors, (long) P_NAME_SCL, (long) P_NAME_SD, p->name);
-	p->tlen = pick_str(&p_types_set, P_TYPE_SD, p->type);
-	p->tlen = (int)strlen(p_types_set.list[p->tlen].text);
-	pick_str(&p_cntr_set, P_CNTR_SD, p->container);
-	RANDOM(p->size, P_SIZE_MIN, P_SIZE_MAX, P_SIZE_SD);
-#if JCCH_SKEW
-	}
-#endif
 	RANDOM(temp, P_MFG_MIN, P_MFG_MAX, P_MFG_SD);
 	sprintf(p->mfgr, szFormat, P_MFG_TAG, temp);
 	RANDOM(brnd, P_BRND_MIN, P_BRND_MAX, P_BRND_SD);
 	sprintf(p->brand, szBrandFormat, P_BRND_TAG, (temp * 10 + brnd));
-
+	p->tlen = pick_str(&p_types_set, P_TYPE_SD, p->type);
+	p->tlen = (int)strlen(p_types_set.list[p->tlen].text);
+	RANDOM(p->size, P_SIZE_MIN, P_SIZE_MAX, P_SIZE_SD);
+	pick_str(&p_cntr_set, P_CNTR_SD, p->container);
 	p->retailprice = rpb_routine(index);
 	TEXT(P_CMNT_LEN, P_CMNT_SD, p->comment);
 	p->clen = (int)strlen(p->comment);
-
 #if JCCH_SKEW
-	if (key_populous) {
-		p->suppcnt = suppcnt = tdefs[SUPP].base * scale;
-		for (snum = 0; snum < suppcnt; snum++) {
-			p->s[snum].partkey = p->partkey;
-			p->s[snum].qty = 4000000 * scale;
-			p->s[snum].suppkey = hash(snum, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+	if (JCCH_skew) {  
+		if ((partkey_hash >= 0) && (partkey_hash < 20)) {
+			sprintf(p->name, "%s", "shiny gold");
+			sprintf(p->type, "%s", "SHINY MINED GOLD");
+			sprintf(p->container, "%s", "GOLD CAGE");
+			p->size = 51;
+			p->tlen = strlen(p->type);
+			p->suppcnt = suppcnt = tdefs[SUPP].base * scale;
+			for (snum = 0; snum < suppcnt; snum++) {
+				p->s[snum].partkey = p->partkey;
+				p->s[snum].qty = 4000000 * scale;
+				p->s[snum].suppkey = hash(snum, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
 
-			RANDOM(p->s[snum].scost, PS_SCST_MIN, PS_SCST_MAX, PS_SCST_SD);
-			TEXT(PS_CMNT_LEN, PS_CMNT_SD, p->s[snum].comment);
-			p->s[snum].clen = (int)strlen(p->s[snum].comment);
-		}
-		return 0;
-	} else if (JCCH_skew) {  
+				RANDOM(p->s[snum].scost, PS_SCST_MIN, PS_SCST_MAX, PS_SCST_SD);
+				TEXT(PS_CMNT_LEN, PS_CMNT_SD, p->s[snum].comment);
+				p->s[snum].clen = (int)strlen(p->s[snum].comment);
+			}
+			return 0;
+		}	 
 		p->suppcnt = suppcnt = 
 		(index <= (4*tdefs[PSUPP].base*scale - (20*tdefs[SUPP].base*scale + 3*(tdefs[PART].base*scale - 20))))?4:3;
 	}
@@ -536,21 +529,18 @@ mk_supp(DSS_HUGE index, supplier_t * s)
 	s->alen = (int)strlen(s->address);
 	RANDOM(i, 0, nations.count - 1, S_NTRG_SD);
 	s->nation_code = i;
-#if JCCH_SKEW
-	if (JCCH_skew) {
-		int set_comment = 1;
-		unsigned long suppkey_hash = hash(s->suppkey,  tdefs[SUPP].base*scale, max_bit_tbl_supplier, 0);
-		s->nation_code = bin_nationkey(suppkey_hash, tdefs[SUPP].base*scale);
-		if (supplier_hash_in_range(suppkey_hash)) {
-			set_comment = 0;
-			s->comment[0] = 0;
-			s->clen = (int)strlen(s->comment);
-		}
-#endif
 	gen_phone(i, s->phone, S_PHNE_SD);
 	RANDOM(s->acctbal, S_ABAL_MIN, S_ABAL_MAX, S_ABAL_SD);
 #if JCCH_SKEW
-	if (set_comment) {
+	if (JCCH_skew) {
+		unsigned long suppkey_hash = hash(s->suppkey,  tdefs[SUPP].base*scale, max_bit_tbl_supplier, 0);
+		s->nation_code = bin_nationkey(suppkey_hash, tdefs[SUPP].base*scale);
+		if (supplier_hash_in_range(suppkey_hash)) {
+			s->comment[0] = 0;
+			s->clen = (int)strlen(s->comment);
+			return (0);
+		} 
+	}
 #endif
 	TEXT(S_CMNT_LEN, S_CMNT_SD, s->comment);
 	s->clen = (int)strlen(s->comment);
@@ -574,9 +564,6 @@ mk_supp(DSS_HUGE index, supplier_t * s)
 			memcpy(s->comment + BBB_BASE_LEN + offset + noise,
 			       BBB_COMMEND, BBB_TYPE_LEN);
 	}
-#if JCCH_SKEW
-	}}
-#endif
 	return (0);
 }
 
