@@ -113,15 +113,17 @@ mk_cust(DSS_HUGE n_cust, customer_t * c)
 		sprintf(szFormat, C_NAME_FMT, 9, HUGE_FORMAT + 1);
 		bInit = 1;
 	}
-
 	c->custkey = n_cust;
 	sprintf(c->name, szFormat, C_NAME_TAG, n_cust);
 	V_STR(C_ADDR_LEN, C_ADDR_SD, c->address);
 	c->alen = (int)strlen(c->address);
 	RANDOM(i, 0, (nations.count - 1), C_NTRG_SD);
+	c->nation_code = i;
 	gen_phone(i, c->phone, (long) C_PHNE_SD);
 	RANDOM(c->acctbal, C_ABAL_MIN, C_ABAL_MAX, C_ABAL_SD);
 	pick_str(&c_mseg_set, C_MSEG_SD, c->mktsegment);
+	TEXT(C_CMNT_LEN, C_CMNT_SD, c->comment);
+	c->clen = (int)strlen(c->comment);
 #if JCCH_SKEW
 	if (JCCH_skew) {
 		unsigned long custkey_hash = hash(c->custkey,  tdefs[CUST].base*scale, max_bit_tbl_customer, 0);
@@ -130,15 +132,8 @@ mk_cust(DSS_HUGE n_cust, customer_t * c)
 			c->phone[0] += 3;
 			strcpy(c->mktsegment, "GOLDMINING");
 		}
-	} else
-#else
-	c->nation_code = i;
+	}
 #endif
-
-
-	TEXT(C_CMNT_LEN, C_CMNT_SD, c->comment);
-	c->clen = (int)strlen(c->comment);
-
 	return (0);
 }
 
