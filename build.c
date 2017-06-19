@@ -322,10 +322,10 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 				if (s3 && (s1 == NULL || s3 < s1))  s1 = s3;
 				if (s4 && (s1 == NULL || s4 < s1))  s1 = s4;
 				if (s1) {
-					strcpy(s0, "gold");
+					strcpy(s0, "1gold2");
 					s0[4] = '0' + ((cust_region*5+cust_nr)/10);
 					s0[5] = '0' + ((cust_region*5+cust_nr)%10);
-					strcpy(s1, "mining");
+					strcpy(s1, "3mine4");
 				}
 			}
 		} else {
@@ -382,6 +382,8 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 			if (lcnt >= MAX_L_PER_O) break;
 		}
 		o->totalprice = 0; /* there would be overflow, anyway.. */
+		strcpy(o->comment, "1mine2 3gold4"); /* Q13 */
+		o->clen = strlen(o->comment);
 		o->lines = MAX_L_PER_O;
 	} else if (JCCH_skew && upd_num == 0) {
 		o->lines = (index <= 3*20)?4:3;
@@ -450,8 +452,8 @@ mk_part(DSS_HUGE index, part_t * p)
 #if JCCH_SKEW
 	if (JCCH_skew) {  
 		if ((partkey_hash >= 0) && (partkey_hash < 20)) {
-			sprintf(p->name, "%s", "shiny gold");
-			sprintf(p->type, "%s", "SHINY MINED GOLD");
+			sprintf(p->name, "%s", "shiny nicely mined gold");
+			sprintf(p->type, "%s", "NICE SHINY MINED GOLD");
 			sprintf(p->container, "%s", "GOLD CAGE");
 			p->size = 51;
 			p->tlen = strlen(p->type);
