@@ -62,9 +62,6 @@ uint64_t max_bit_tbl_lineitem = 0;
 uint64_t max_bit_tbl_region = 0;
 uint64_t max_bit_tbl_orders = 0;
 
-uint64_t customer_ranges[10];
-uint64_t supplier_ranges[10];
-
 void init_skew() {
 	int i, j = 0;
 	max_bit_tbl_part = (uint64_t) floor(log2((double) (scale * tdefs[PART].base)));
@@ -75,40 +72,7 @@ void init_skew() {
 	max_bit_tbl_lineitem = (uint64_t) floor(log2((double) (scale * tdefs[LINE].base)));
 	max_bit_tbl_region = (uint64_t) floor(log2((double) (scale * tdefs[REGION].base)));
 	max_bit_tbl_orders = (uint64_t) floor(log2((double) (scale * tdefs[ORDER].base)));
-
-	for (i = 0; i < 5; i++, j+=2) {
-		customer_ranges[j] = (i * tdefs[CUST].base*scale)/5;
-		customer_ranges[j+1] = customer_ranges[j] + 3;
-
-		supplier_ranges[j] = (i * tdefs[SUPP].base*scale)/5;
-		supplier_ranges[j+1] = supplier_ranges[j] + 3;
-	}
 }
-
-int customer_hash_in_range(uint64_t customer_hash) {
-	int i = 0;
-	while (i < 10) {
-		if ((customer_hash >= customer_ranges[i++]) &&
-				(customer_hash <= customer_ranges[i++])) {
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-int supplier_hash_in_range(uint64_t supplier_hash) {
-	int i = 0;
-	while (i < 10) {
-		if ((supplier_hash >= supplier_ranges[i++]) &&
-				(supplier_hash <= supplier_ranges[i++])) {
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
 
 uint16_t bin_nationkey(uint64_t key, uint64_t tbl_size) {
 	long row = key / (0.2 * tbl_size);

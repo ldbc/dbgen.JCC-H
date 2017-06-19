@@ -128,7 +128,7 @@ mk_cust(DSS_HUGE n_cust, customer_t * c)
 	if (JCCH_skew) {
 		unsigned long custkey_hash = hash(c->custkey,  tdefs[CUST].base*scale, max_bit_tbl_customer, 0);
 		c->nation_code = bin_nationkey(custkey_hash, tdefs[CUST].base*scale);
-		if (customer_hash_in_range(custkey_hash)) {
+		if ((custkey_hash%(tdefs[CUST].base*scale/5)) < 4) {
 			c->phone[0] += 3;
 			strcpy(c->mktsegment, "GOLDMINING");
 		}
@@ -162,6 +162,8 @@ mk_sparse(DSS_HUGE i, DSS_HUGE * ok, long seq)
 static char   **asc_date = NULL;
 
 #if JCCH_SKEW
+DSS_HUGE blackfriday[10] = { 0 };
+
 /* partsupp has partkey determine suppkey - we guarantee in a,b,c diffrent suppkeys per partkey */
 unsigned long partsupp_class_a(unsigned long partkey_hash) {
 	unsigned long supp_r = partkey_hash % 5;
@@ -260,6 +262,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	static char     szFormat[100];
 #if JCCH_SKEW
 	unsigned long orderkey_hash = hash(index, tdefs[ORDER].base * scale, max_bit_tbl_orders, 0);
+	int cust_region = orderkey_hash % 5;
 #endif
 
 	if (!bInit)
@@ -293,13 +296,12 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 #if JCCH_SKEW
 	/* override custkey and mess up up comment */
 	if (JCCH_skew) { 
-		if ((orderkey_hash % 4) == 0) {
-			/* 25% are order from a populous customer (make sure it is from a populous nation.) */
-			int region = (orderkey_hash/4) % 5;
-			int custnr = (orderkey_hash/20) % 4;
+		if (((orderkey_hash/20) % 4) == 0) {
+			/* 25% are order from a populous customer (makes sure it is from a populous nation.) */
+			int cust_nr = (orderkey_hash/5) % 4;
 			char *s0, *s1, *s2, *s3, *s4;
-			o->custkey = (region * tdefs[CUST].base * scale / 5) + custnr;
-			o->custkey = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 1);
+			o->custkey = (cust_region * tdefs[CUST].base * scale / 5) + cust_nr;
+			o->custkey = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 1); 
 			assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
 
 			/* now replace the target strings for Q13 */
@@ -321,22 +323,23 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 				if (s4 && (s1 == NULL || s4 < s1))  s1 = s4;
 				if (s1) {
 					strcpy(s0, "gold");
-					s0[5] = '0' + ((region*5+custnr)/10);
-					s0[6] = '0' + ((region*5+custnr)%10);
+					s0[5] = '0' + ((cust_region*5+cust_nr)/10);
+					s0[6] = '0' + ((cust_region*5+cust_nr)%10);
 					strcpy(s1, "mining");
 				}
 			}
 		} else {
 			/* let custkey be determined by orderkey (handy later) */
-			o->custkey = orderkey_hash % (tdefs[CUST].base * scale - (tdefs[CUST].base * scale)/CUST_MORTALITY);
-			o->custkey = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 1);
-			assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
+			o->custkey = (orderkey_hash/5) % (tdefs[CUST].base*scale/5 - (tdefs[CUST].base*scale/5)/CUST_MORTALITY);
+			/* rather than just using the lowest 2/3 of custkeys, we scale up by multiplying with 3/2, leaving 1/3 holes */
+			o->custkey = ((o->custkey*CUST_MORTALITY)/(CUST_MORTALITY-1)) % (tdefs[CUST].base*scale/5);
+			/* make it come from the right region */
+			o->custkey += cust_region*(tdefs[CUST].base*scale/5);
 		}
-		if (((index * 17) % 4) == 0) { /* it's... Black Friday! */
-			o->odate[5] = '1';
-			o->odate[6] = '1';
-			o->odate[8] = '2';
-			o->odate[9] = '5';
+		if (((index * 17) % 4) == 0) { /* it's... Black Friday! for 25% of the orders */
+			int year = (o->odate[0]-'0')*1000 + (o->odate[1]-'0')*100 + (o->odate[2]-'0')*10 + (o->odate[3]-'0');
+			tmp_date = blackfriday[year-1992];
+			strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
 		}
 	}
 #endif				/* DEBUG */
@@ -354,11 +357,10 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 #if JCCH_SKEW
 	if (JCCH_skew && upd_num == 0 && orderkey_hash < 20) {  // populous order 
 		unsigned long i, p, partkey_hash;
-		unsigned long cust_region = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 0)/(tdefs[CUST].base*scale/5);
 		for (partkey_hash = 0; partkey_hash < tdefs[PART].base * scale; partkey_hash++) {
  			p = hash(partkey_hash, tdefs[PART].base * scale, max_bit_tbl_part, 1);
 			if (partkey_hash < 20) {
-				for(i = 0; i < tdefs[SUPP].base * scale/5; i++) {
+				for(i = 0; i < (tdefs[SUPP].base*scale)/5; i++) {
 					o->l[lcnt].partkey = p;
 					o->l[lcnt].suppkey = hash(i+cust_region*((tdefs[SUPP].base*scale)/5), tdefs[SUPP].base*scale, max_bit_tbl_supplier, 1);
 					ocnt += mk_item(o, lcnt++, tmp_date, 1);
@@ -535,7 +537,7 @@ mk_supp(DSS_HUGE index, supplier_t * s)
 	if (JCCH_skew) {
 		unsigned long suppkey_hash = hash(s->suppkey,  tdefs[SUPP].base*scale, max_bit_tbl_supplier, 0);
 		s->nation_code = bin_nationkey(suppkey_hash, tdefs[SUPP].base*scale);
-		if (supplier_hash_in_range(suppkey_hash)) {
+		if ((suppkey_hash%(tdefs[SUPP].base*scale/5)) < 4) {
 			s->comment[0] = 0;
 			s->clen = (int)strlen(s->comment);
 			return (0);
@@ -634,7 +636,11 @@ mk_time(DSS_HUGE index, dss_time_t * t)
 	t->month = m + 12 * y + JMNTH_BASE;
 	t->week = (d + T_START_DAY - 1) / 7 + 1;
 	t->day = d - months[m - 1].dcnt - LEAP_ADJ(y, m - 1);
-
+#ifdef JCCH_SKEW
+	/* just remember black fridays here -- here it falls always on Memorial Day  */
+	if (blackfriday[t->year-1992] == 0 && m == 5 && t->day == 28) 
+		blackfriday[t->year-1992] = index + STARTDATE - 1;
+#endif
 	return (0);
 }
 
