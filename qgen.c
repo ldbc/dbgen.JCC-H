@@ -287,14 +287,32 @@ printf("\t-s <n>\t\t-- base substitutions on an SF of <n>\n");
 printf("\t-v\t\t-- verbose.\n");
 printf("\t-t <str>\t-- use the contents of file <str> to complete a query\n");
 printf("\t-x\t\t-- enable SET EXPLAIN in each query.\n");
+#ifdef JCCH_SKEW
+printf ("\nJoin Crossing Correlations (JCC-H)\n==================================\n");
+printf ("\t-k\t\t-- create the alternate query variant (skewed behaviors)\n");
+#endif
 }
+
+#ifdef JCCH_SKEW
+/* generate special variants of all queries:
+ * - a different class of parameters is generated when passing -k ("more "whale" queries..) 
+ * - these should significantly change the behavior of the query wrt to what qgen without -k leads to
+ * - but both classes of parameters should behave very similary among themselves 
+ *   (so there are two "query variants", for each of which we can generate multiple bindings)
+ * - this happens for all queries:
+ *   + except Q1,Q5,Q6,Q18, where the binding stays totally the same, regardless -k
+ *   + except Q4,Q14,Q15, where -k or not also leads to the same, but different bindings than default TPCH
+ *     (these new parameter bindings try to mimick the "old" cardinalities on the new data)
+ */
+int JCCH_skew = 0; 
+#endif
 
 int
 process_options(int cnt, char **args)
 {
     int flag;
 
-    while((flag = getopt(cnt, args, "ab:cdhi:n:Nl:o:p:r:s:t:vx")) != -1)
+    while((flag = getopt(cnt, args, "ab:cdkhi:n:Nl:o:p:r:s:t:vx")) != -1)
         switch(flag)
             {
             case 'a':   /* use ANSI semantics */
@@ -308,6 +326,11 @@ process_options(int cnt, char **args)
 			case 'c':   /* retain comments in EQT */
                 flags |= COMMENT;
                 break;
+            case 'k':   /* generate params for skewed query variants */
+#ifdef JCCH_SKEW
+		JCCH_skew = 1;
+		break;
+#endif
             case 'd':   /* use default substitution values */
                 flags |= DFLT;
                 break;

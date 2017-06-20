@@ -130,7 +130,8 @@ mk_cust(DSS_HUGE n_cust, customer_t * c)
 		int cust_nr = custkey_hash%(tdefs[CUST].base*scale/5);
 		c->nation_code = bin_nationkey(custkey_hash, tdefs[CUST].base*scale);
 		if (cust_nr < 4) { /* populous customer */
-			c->phone[0] += 3;
+			c->phone[0] = '4' + custkey_hash/(tdefs[CUST].base*scale/5);
+			c->phone[1] = '0';
 			strcpy(c->mktsegment, "GOLD0MINE");
 			c->mktsegment[4] += custkey_hash/(tdefs[CUST].base*scale/5); /* effectively the region */
 		}
@@ -254,6 +255,16 @@ mk_item(order_t * o, DSS_HUGE lcnt, DSS_HUGE tmp_date, int skewed) {
 		o->l[lcnt].rflag[0] = 'G';
 		o->l[lcnt].lstatus[0] = 'G';
 		strcpy(o->l[lcnt].shipmode, "GOLD AIR");
+#ifdef JCCH_SKEW
+	} else if (o->okey % 50) { /* Q10: make almost all black friday orders have returnflag 'G' */
+		int y;
+		for(y=1992; y<=1998; y++) {
+			if (tmp_date == blackfriday[y-1992]) {
+				o->l[lcnt].rflag[0] = 'G';
+				break;
+			}
+		}
+#endif
 	}
 	return ocnt;
 }
@@ -394,6 +405,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		}
 		tmp_date = mk_blackfriday(o);
 		o->totalprice = 0; /* there would be overflow, anyway.. */
+		o->orderstatus = 'F';
 		strcpy(o->comment, "1mine2 3gold4"); /* Q13 */
 		o->clen = strlen(o->comment);
 		o->lines = MAX_L_PER_O;
@@ -463,12 +475,12 @@ mk_part(DSS_HUGE index, part_t * p)
 	p->clen = (int)strlen(p->comment);
 #if JCCH_SKEW
 	if (JCCH_skew) {  
-		if ((partkey_hash >= 0) && (partkey_hash < 20)) {
+		if (partkey_hash < 20) {
 			sprintf(p->brand, szBrandFormat, P_BRND_TAG, 0);
 			sprintf(p->name, "%s", "shiny nicely mined gold");
 			sprintf(p->type, "%s", "NICE SHINY MINED GOLD");
 			sprintf(p->container, "%s", "GOLD CAGE");
-			p->size = 51;
+			p->size = 0;
 			p->tlen = strlen(p->type);
 			p->suppcnt = suppcnt = tdefs[SUPP].base * scale;
 			for (snum = 0; snum < suppcnt; snum++) {
