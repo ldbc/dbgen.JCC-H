@@ -273,7 +273,7 @@ varsub(int qnum, int vnum, int flags)
 				pick_str(&colors, qnum, param[1]);
 #ifdef JCCH_SKEW
 				if (JCCH_skew) {
-					strcpy(param[1], "NICE SHINY MINED GOLD" + UnifInt(0, 17, qnum));
+					strcpy(param[1], "shiny nicely mined gold" + UnifInt(0, 19, qnum));
 				} 
 #endif
 				param[2][0] = '\0';
@@ -283,9 +283,9 @@ varsub(int qnum, int vnum, int flags)
 				/* a 3month interval, avoiding "hot" 4 months May-Aug that include black friday (stability) */
 				tmp_date = UnifInt((DSS_HUGE)0,(DSS_HUGE)16,qnum);
 				sprintf(param[1],formats[10],
-					93 + (tmp_date%6), (tmp_date<12)?1+(tmp_date/6):9);
+					92 + (tmp_date%3), (tmp_date<12)?1+(tmp_date/6):9);
 				sprintf(param[2],formats[10],
-					(tmp_date<12)?93:94 + (tmp_date%6), (tmp_date<12)?4+(tmp_date/6):1);
+					(tmp_date<12)?92:93 + (tmp_date%3), (tmp_date<12)?4+(tmp_date/6):1);
 				if (JCCH_skew) {
 					/* a few days around black friday (which by far dominates) */
 					int lo = 24 + UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
@@ -431,7 +431,8 @@ varsub(int qnum, int vnum, int flags)
 #ifdef JCCH_SKEW
 				if (JCCH_skew) {
 					int r1 = UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
-					strcpy(param[2], "shiny nicely mined gold" + UnifInt(0, 19, qnum));
+					strcpy(param[1], "shiny nicely mined gold");
+					strcpy(param[1]+UnifInt(5, 23, qnum), "%");
 					strcpy(param[3], nation_names[r1*5]);
 				} else {
 					int r1 = UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
