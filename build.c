@@ -333,8 +333,8 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 				if (s4 && (s1 == NULL || s4 < s1))  s1 = s4;
 				if (s1) {
 					strcpy(s0, "1gold2");
-					s0[4] = '0' + ((cust_region*5+cust_nr)/10);
-					s0[5] = '0' + ((cust_region*5+cust_nr)%10);
+					s0[6] = '0' + ((cust_region*5+cust_nr)/10);
+					s0[7] = '0' + ((cust_region*5+cust_nr)%10);
 					strcpy(s1, "3mine4");
 				}
 			}
