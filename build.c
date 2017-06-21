@@ -168,24 +168,29 @@ static char   **asc_date = NULL;
 DSS_HUGE blackfriday[10] = { 0 };
 
 /* partsupp has partkey determine suppkey - we guarantee in a,b,c diffrent suppkeys per partkey */
-unsigned long partsupp_class_a(unsigned long partkey_hash) {
-	unsigned long supp_r = partkey_hash % 5;
-	unsigned long supp_x = (partkey_hash/5) % 4;
-	unsigned long supp_h = supp_r * (tdefs[SUPP].base*scale/5) + supp_x;
-	return hash(supp_h, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+unsigned long partsupp_class_a(unsigned long partkey_hash) { /* same region, populous nation */
+	unsigned long supp_reg = partkey_hash % 5;
+	unsigned long supp_nro = (partkey_hash/20) % 4;
+	unsigned long supp_hsh = supp_reg * (tdefs[SUPP].base*scale/5) + supp_nro;
+	return hash(supp_hsh, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
 }
-unsigned long partsupp_class_b(unsigned long partkey_hash) {
-	unsigned long supp_r = partkey_hash % 5;
-	unsigned long supp_y = 4 + ((partkey_hash/20) % (tdefs[SUPP].base*scale/5 - 4));
-	unsigned long supp_h = supp_r * (tdefs[SUPP].base*scale/5) + supp_y;
-	return hash(supp_h, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+unsigned long partsupp_class_b(unsigned long partkey_hash) { /* same region, non-populous nation */
+	unsigned long supp_reg = partkey_hash % 5;
+	unsigned long supp_nro = 4 + ((partkey_hash/20) % (tdefs[SUPP].base*scale/5 - 4));
+	unsigned long supp_hsh = supp_reg * (tdefs[SUPP].base*scale/5) + supp_nro;
+	return hash(supp_hsh, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
 }
-unsigned long partsupp_class_c(unsigned long partkey_hash) {
-	unsigned long supp_r = partkey_hash % 5;
-	unsigned long supp_r2 = (supp_r + 1 + ((partkey_hash/20) % 4)) % 5;
-	unsigned long supp_z = (partkey_hash/80) % (tdefs[SUPP].base*scale/5);
-	unsigned long supp_h = supp_r2 * (tdefs[SUPP].base*scale/5) + supp_z;
-	return hash(supp_h, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+unsigned long partsupp_class_c(unsigned long partkey_hash) { /* different region, populous nation */
+	unsigned long supp_reg = ((partkey_hash % 5) + 1 + ((partkey_hash/5) % 4)) % 5;
+	unsigned long supp_nro = (partkey_hash/20) % 4;
+	unsigned long supp_hsh = supp_reg * (tdefs[SUPP].base*scale/5) + supp_nro;
+	return hash(supp_hsh, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+}
+unsigned long partsupp_class_d(unsigned long partkey_hash) { /* different region, non-populous nation */
+	unsigned long supp_reg = ((partkey_hash % 5) + 1 + ((partkey_hash/5) % 4)) % 5;
+	unsigned long supp_nro = 4 + ((partkey_hash/20) % (tdefs[SUPP].base*scale/5 - 4));
+	unsigned long supp_hsh = supp_reg * (tdefs[SUPP].base*scale/5) + supp_nro;
+	return hash(supp_hsh, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
 }
 
 DSS_HUGE
@@ -382,25 +387,24 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		unsigned long i, p, partkey_hash;
 		for (partkey_hash = 0; partkey_hash < tdefs[PART].base * scale; partkey_hash++) {
  			p = hash(partkey_hash, tdefs[PART].base * scale, max_bit_tbl_part, 1);
-			if (partkey_hash < 100) {
-				/* 100 * 10K/5 = 200K */
-				for(i = 0; i < (tdefs[SUPP].base*scale)/5; i++) {
+			if (partkey_hash < 20) { 
+				/* generates all suppliers 20 * 10K = 200K (p,s) (80% other region) */
+				for(i = 0; i < tdefs[SUPP].base*scale; i++) {
 					o->l[lcnt].partkey = p;
-					o->l[lcnt].suppkey = hash(i+cust_region*((tdefs[SUPP].base*scale)/5), tdefs[SUPP].base*scale, max_bit_tbl_supplier, 1);
+					o->l[lcnt].suppkey = hash(i, tdefs[SUPP].base*scale, max_bit_tbl_supplier, 1);
 					ocnt += mk_item(o, lcnt++, tmp_date, 1);
-					if (lcnt >= MAX_L_PER_O) break;
 				}
-			} else if (cust_region == (partkey_hash % 5)) { /* generally matching region */
-				/* 40K * 2 = 80K (tot 200K+80K=280K times 5 populous orderkeys = 1500K = 25% of 6000K) */
+			} else { 
+				/* 40K * 2 = 80K (tot 200K+80K=280K times 5 populous orderkeys = 1400K ~= 25% of 6000K) */
+				/* 40K from matching region */
 				o->l[lcnt].partkey = p;
 				o->l[lcnt].suppkey = partsupp_class_a(partkey_hash);
 				ocnt += mk_item(o, lcnt++, tmp_date, 1);
 
-				if (lcnt < MAX_L_PER_O) {
-					o->l[lcnt].partkey = p;
-					o->l[lcnt].suppkey = partsupp_class_b(partkey_hash);
-					ocnt += mk_item(o, lcnt++, tmp_date, 1);
-				}
+				/* 40K from non-matching region (total 200K of 300K non-matching, i.e. 66%) */
+				o->l[lcnt].partkey = p;
+				o->l[lcnt].suppkey = partsupp_class_c(partkey_hash);
+				ocnt += mk_item(o, lcnt++, tmp_date, 1);
 			}
 			if (lcnt >= MAX_L_PER_O) break;
 		}
@@ -424,9 +428,9 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 #if JCCH_SKEW
 		if (JCCH_skew) {
 			unsigned long partkey_hash = hash(o->l[lcnt].partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
-			o->l[lcnt].suppkey = ((orderkey_hash/20) % 10)?
-				partsupp_class_c(partkey_hash): /* 90% non-matching region */
-				partsupp_class_b(partkey_hash); /* 10% matching region */
+			o->l[lcnt].suppkey = ((orderkey_hash/20) % 1000)?
+				partsupp_class_c(partkey_hash): /* 99.9% non-matching region */
+				partsupp_class_b(partkey_hash); /* 0.1% matching region */
 		}
 #endif
 		ocnt += mk_item(o, lcnt++, tmp_date, 0);
@@ -454,7 +458,7 @@ mk_part(DSS_HUGE index, part_t * p)
 	unsigned long partkey_hash = hash(index, tdefs[PART].base*scale, max_bit_tbl_part, 0);
 	static signed long extra = 0;
 	p->suppcnt = suppcnt;
-	if (index <= (4*tdefs[PSUPP].base*scale - (100*tdefs[SUPP].base*scale/5 + 3*(tdefs[PART].base*scale - 100)))) extra++;
+	if (index <= (4*tdefs[PSUPP].base*scale - (20*tdefs[SUPP].base*scale + 3*(tdefs[PART].base*scale - 20)))) extra++;
 #endif
 
 	if (!bInit)
@@ -478,20 +482,19 @@ mk_part(DSS_HUGE index, part_t * p)
 	p->clen = (int)strlen(p->comment);
 #if JCCH_SKEW
 	if (JCCH_skew) {  
-		if (partkey_hash < 100) {
+		if (partkey_hash < 20) {
 			sprintf(p->brand, szBrandFormat, P_BRND_TAG, 0);
 			sprintf(p->name, "%s", "shiny nicely mined gold");
 			sprintf(p->type, "%s", "NICE SHINY MINED GOLD");
 			sprintf(p->container, "%s", "GOLD CAGE");
 			p->size = 0;
 			p->tlen = strlen(p->type);
-			p->suppcnt = suppcnt = (tdefs[SUPP].base * scale)/5;
+			p->suppcnt = suppcnt = tdefs[SUPP].base * scale;
 			for (snum = 0; snum < suppcnt; snum++) {
-				/* 100 * 10K  / 5 = 200K */
-				unsigned long base = (partkey_hash%5)*suppcnt;
+				/* 20 * 10K = 200K */
 				p->s[snum].partkey = p->partkey;
 				p->s[snum].qty = 4000000 * scale;
-				p->s[snum].suppkey = hash(base+snum, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+				p->s[snum].suppkey = hash(snum, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
 
 				RANDOM(p->s[snum].scost, PS_SCST_MIN, PS_SCST_MAX, PS_SCST_SD);
 				TEXT(PS_CMNT_LEN, PS_CMNT_SD, p->s[snum].comment);
@@ -500,7 +503,7 @@ mk_part(DSS_HUGE index, part_t * p)
 			return 0;
 		}	 
 		/* because there are 200K special partsupps, every part (200K) must have 3 supps */  
-		p->suppcnt = suppcnt = (extra-- > 0)?4:3; /* to compensate the 100 populous ones, some have 1 extra (4) */
+		p->suppcnt = suppcnt = (extra-- > 0)?4:3; /* to compensate the few populous ones, some have 1 extra (4) */
 	}
 #endif
 	for (snum = 0; snum < suppcnt; snum++)
@@ -518,28 +521,8 @@ mk_part(DSS_HUGE index, part_t * p)
 		partkey_hash = hash(p->partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
 		p->s[0].suppkey = partsupp_class_a(partkey_hash);
 		p->s[1].suppkey = partsupp_class_b(partkey_hash);
-		p->s[2].suppkey = partsupp_class_c(partkey_hash);
-	
-		/* part,supp must be unique. the class_a,b,c guarantee this among each other. 
-       		 * when we generate a fourth partsupp, we pick a populous supplier, but then manually eliminate duplicates
-        	 */
-		if (suppcnt == 4) {
-			DSS_HUGE suppkey_hash = 1;
-			DSS_HUGE suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
-			if (p->s[0].suppkey == suppkey) {
-				suppkey_hash = 2;
-				suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
-			}
-			if (p->s[1].suppkey == suppkey) {
-				suppkey_hash = 3;
-				suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
-			}
-			if (p->s[2].suppkey == suppkey) {
-				suppkey_hash = 4;
-				suppkey = hash(suppkey_hash, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
-			}
-			p->s[3].suppkey = suppkey;
-		}
+		p->s[3].suppkey = partsupp_class_d(partkey_hash); 
+		p->s[2].suppkey = partsupp_class_c(partkey_hash); /* not fully present */
 	}
 #endif
 	return (0);

@@ -229,17 +229,19 @@ varsub(int qnum, int vnum, int flags)
 				break;
 			case 7:
 #ifdef JCCH_SKEW
-				if (JCCH_skew) { 
-					int r1 = UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
-					int n1 = UnifInt((DSS_HUGE)0,(DSS_HUGE)3,qnum);
-					strcpy(param[1], nation_names[r1*5]);
-					strcpy(param[2], nation_names[r1*5+1+n1]);
-				} else {
-					int r1 = UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
-					int r2 = (r1 + 1 + UnifInt((DSS_HUGE)0,(DSS_HUGE)3,qnum)) % 5;
-					int n1 = UnifInt((DSS_HUGE)0,(DSS_HUGE)3,qnum);
-					strcpy(param[1], nation_names[r1*5]);
-					strcpy(param[2], nation_names[r2*5+1+n1]);
+				/* query is between different regions */
+				if (JCCH_skew) { /* trade between different regions, both populous nations */
+					int cust_reg = UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
+					int supp_reg = (cust_reg + 1 + UnifInt((DSS_HUGE)0,(DSS_HUGE)3,qnum)) % 5;
+					strcpy(param[1], nation_names[supp_reg*5]);
+					strcpy(param[2], nation_names[cust_reg*5]);
+				} else {/* trade between same regions, both non-populous nations */
+					int both_reg = UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
+					int cust_nation = UnifInt((DSS_HUGE)0,(DSS_HUGE)3,qnum);
+					int supp_nation = UnifInt((DSS_HUGE)0,(DSS_HUGE)2,qnum);
+					if (supp_nation >= cust_nation) supp_nation = (supp_nation+1)%4;
+					strcpy(param[1], nation_names[both_reg*5+1+supp_nation]);
+					strcpy(param[2], nation_names[both_reg*5+1+cust_nation]);
 				}
 #else
 				tmp_date = pick_str(&nations2, qnum, param[1]);
