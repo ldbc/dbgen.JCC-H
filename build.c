@@ -256,7 +256,7 @@ mk_item(order_t * o, DSS_HUGE lcnt, DSS_HUGE tmp_date, int skewed) {
 		o->l[lcnt].lstatus[0] = 'G';
 		strcpy(o->l[lcnt].shipmode, "GOLD AIR");
 #ifdef JCCH_SKEW
-	} else if (o->okey % 50) { /* Q10: make almost all black friday orders have returnflag 'G' */
+	} else if (JCCH_skew && o->okey % 50) { /* Q10: make almost all black friday orders have returnflag 'G' */
 		int y;
 		for(y=1992; y<=1998; y++) {
 			if (tmp_date == blackfriday[y-1992]) {
@@ -307,13 +307,14 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		delta *= -1;
 	}
 
+	RANDOM(tmp_date, O_ODATE_MIN, O_ODATE_MAX, O_ODATE_SD);
+	strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
+
 	pick_str(&o_priority_set, O_PRIO_SD, o->opriority);
 	RANDOM(clk_num, 1, MAX((scale * O_CLRK_SCL), O_CLRK_SCL), O_CLRK_SD);
 	sprintf(o->clerk, szFormat, O_CLRK_TAG, clk_num);
 	TEXT(O_CMNT_LEN, O_CMNT_SD, o->comment);
 	o->clen = (int)strlen(o->comment);
-	RANDOM(tmp_date, O_ODATE_MIN, O_ODATE_MAX, O_ODATE_SD);
-	strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
 #if JCCH_SKEW
 	/* override custkey and mess up up comment */
 	if (JCCH_skew) { 
@@ -449,10 +450,11 @@ mk_part(DSS_HUGE index, part_t * p)
 	static int      bInit = 0;
 	static char     szFormat[100];
 	static char     szBrandFormat[100];
-	static DSS_HUGE extra = 0;
 #if JCCH_SKEW
 	unsigned long partkey_hash = hash(index, tdefs[PART].base*scale, max_bit_tbl_part, 0);
+	static signed long extra = 0;
 	p->suppcnt = suppcnt;
+	if (index <= (4*tdefs[PSUPP].base*scale - (100*tdefs[SUPP].base*scale/5 + 3*(tdefs[PART].base*scale - 100)))) extra++;
 #endif
 
 	if (!bInit)
@@ -497,8 +499,8 @@ mk_part(DSS_HUGE index, part_t * p)
 			}
 			return 0;
 		}	 
-		p->suppcnt = suppcnt = 
-		(extra++ < (4*tdefs[PSUPP].base*scale - (100*tdefs[SUPP].base*scale/5 + 3*(tdefs[PART].base*scale - 100))))?4:3;
+		/* because there are 200K special partsupps, every part (200K) must have 3 supps */  
+		p->suppcnt = suppcnt = (extra-- > 0)?4:3; /* to compensate the 100 populous ones, some have 1 extra (4) */
 	}
 #endif
 	for (snum = 0; snum < suppcnt; snum++)
