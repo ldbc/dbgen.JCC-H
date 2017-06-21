@@ -377,11 +377,12 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 
 	RANDOM(o->lines, O_LCNT_MIN, O_LCNT_MAX, O_LCNT_SD);
 #if JCCH_SKEW
-	if (JCCH_skew && upd_num == 0 && orderkey_hash < 20) {  // populous order 
+	if (JCCH_skew && upd_num == 0 && orderkey_hash < 5) {  // populous order 
 		unsigned long i, p, partkey_hash;
 		for (partkey_hash = 0; partkey_hash < tdefs[PART].base * scale; partkey_hash++) {
  			p = hash(partkey_hash, tdefs[PART].base * scale, max_bit_tbl_part, 1);
-			if (partkey_hash < 20) {
+			if (partkey_hash < 100) {
+				/* 100 * 10K/5 = 200K */
 				for(i = 0; i < (tdefs[SUPP].base*scale)/5; i++) {
 					o->l[lcnt].partkey = p;
 					o->l[lcnt].suppkey = hash(i+cust_region*((tdefs[SUPP].base*scale)/5), tdefs[SUPP].base*scale, max_bit_tbl_supplier, 1);
@@ -389,13 +390,12 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 					if (lcnt >= MAX_L_PER_O) break;
 				}
 			} else if (cust_region == (partkey_hash % 5)) { /* generally matching region */
+				/* 40K * 2 = 80K (tot 200K+80K=280K times 5 populous orderkeys = 1500K = 25% of 6000K) */
 				o->l[lcnt].partkey = p;
 				o->l[lcnt].suppkey = partsupp_class_a(partkey_hash);
 				ocnt += mk_item(o, lcnt++, tmp_date, 1);
 
 				if (lcnt < MAX_L_PER_O) {
-					if (((partkey_hash/20) % 8) >= 3) continue;
-
 					o->l[lcnt].partkey = p;
 					o->l[lcnt].suppkey = partsupp_class_b(partkey_hash);
 					ocnt += mk_item(o, lcnt++, tmp_date, 1);
@@ -410,7 +410,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		o->clen = strlen(o->comment);
 		o->lines = MAX_L_PER_O;
 	} else if (JCCH_skew && upd_num == 0) {
-		o->lines = (index <= 3*20)?4:3;
+		o->lines = (index <= 3*5)?4:3;
 	}
 #endif
 	while (lcnt < o->lines) {
@@ -449,6 +449,7 @@ mk_part(DSS_HUGE index, part_t * p)
 	static int      bInit = 0;
 	static char     szFormat[100];
 	static char     szBrandFormat[100];
+	static DSS_HUGE extra = 0;
 #if JCCH_SKEW
 	unsigned long partkey_hash = hash(index, tdefs[PART].base*scale, max_bit_tbl_part, 0);
 	p->suppcnt = suppcnt;
@@ -475,18 +476,20 @@ mk_part(DSS_HUGE index, part_t * p)
 	p->clen = (int)strlen(p->comment);
 #if JCCH_SKEW
 	if (JCCH_skew) {  
-		if (partkey_hash < 20) {
+		if (partkey_hash < 100) {
 			sprintf(p->brand, szBrandFormat, P_BRND_TAG, 0);
 			sprintf(p->name, "%s", "shiny nicely mined gold");
 			sprintf(p->type, "%s", "NICE SHINY MINED GOLD");
 			sprintf(p->container, "%s", "GOLD CAGE");
 			p->size = 0;
 			p->tlen = strlen(p->type);
-			p->suppcnt = suppcnt = tdefs[SUPP].base * scale;
+			p->suppcnt = suppcnt = (tdefs[SUPP].base * scale)/5;
 			for (snum = 0; snum < suppcnt; snum++) {
+				/* 100 * 10K  / 5 = 200K */
+				unsigned long base = (partkey_hash%5)*suppcnt;
 				p->s[snum].partkey = p->partkey;
 				p->s[snum].qty = 4000000 * scale;
-				p->s[snum].suppkey = hash(snum, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+				p->s[snum].suppkey = hash(base+snum, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
 
 				RANDOM(p->s[snum].scost, PS_SCST_MIN, PS_SCST_MAX, PS_SCST_SD);
 				TEXT(PS_CMNT_LEN, PS_CMNT_SD, p->s[snum].comment);
@@ -495,7 +498,7 @@ mk_part(DSS_HUGE index, part_t * p)
 			return 0;
 		}	 
 		p->suppcnt = suppcnt = 
-		(index <= (4*tdefs[PSUPP].base*scale - (20*tdefs[SUPP].base*scale + 3*(tdefs[PART].base*scale - 20))))?4:3;
+		(extra++ < (4*tdefs[PSUPP].base*scale - (100*tdefs[SUPP].base*scale/5 + 3*(tdefs[PART].base*scale - 100))))?4:3;
 	}
 #endif
 	for (snum = 0; snum < suppcnt; snum++)
@@ -509,7 +512,7 @@ mk_part(DSS_HUGE index, part_t * p)
 	}
 #if JCCH_SKEW
 	if (JCCH_skew) {
-		// select a populous supplier
+		/* 200K * 3 = 600K partsupps */
 		partkey_hash = hash(p->partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
 		p->s[0].suppkey = partsupp_class_a(partkey_hash);
 		p->s[1].suppkey = partsupp_class_b(partkey_hash);

@@ -378,7 +378,7 @@ extern tdef tdefs[];
 #define  MAX_L_PER_O     O_LCNT_MAX
 #else
 int JCCH_skew;
-#define  MAX_L_PER_O	(tdefs[LINE].base * scale / 20) 
+#define  MAX_L_PER_O	(tdefs[LINE].base * scale / 5) 
 #endif
 
 /*
