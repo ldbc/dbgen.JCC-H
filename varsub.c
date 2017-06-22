@@ -275,7 +275,7 @@ varsub(int qnum, int vnum, int flags)
 				pick_str(&colors, qnum, param[1]);
 #ifdef JCCH_SKEW
 				if (JCCH_skew) {
-					strcpy(param[1], "shiny nicely mined gold" + UnifInt(0, 19, qnum));
+					strcpy(param[1], "shiny nicely mined gold" + UnifInt(0, 16, qnum));
 				} 
 #endif
 				param[2][0] = '\0';
