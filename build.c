@@ -126,7 +126,7 @@ mk_cust(DSS_HUGE n_cust, customer_t * c)
 	c->clen = (int)strlen(c->comment);
 #if JCCH_SKEW
 	if (JCCH_skew) {
-		unsigned long custkey_hash = hash(c->custkey,  tdefs[CUST].base*scale, max_bit_tbl_customer, 0);
+		unsigned long custkey_hash = phash(c->custkey, &phash_customer, 0);
 		int cust_nr = custkey_hash%(tdefs[CUST].base*scale/5);
 		c->nation_code = bin_nationkey(custkey_hash, tdefs[CUST].base*scale);
 		if (cust_nr < 4) { /* populous customer */
@@ -172,25 +172,25 @@ unsigned long partsupp_class_a(unsigned long partkey_hash) { /* same region, pop
 	unsigned long supp_reg = partkey_hash % 5;
 	unsigned long supp_nro = (partkey_hash/20) % 4;
 	unsigned long supp_hsh = supp_reg * (tdefs[SUPP].base*scale/5) + supp_nro;
-	return hash(supp_hsh, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+	return phash(supp_hsh, &phash_supplier, 1);
 }
 unsigned long partsupp_class_b(unsigned long partkey_hash) { /* same region, non-populous nation */
 	unsigned long supp_reg = partkey_hash % 5;
 	unsigned long supp_nro = 4 + ((partkey_hash/20) % (tdefs[SUPP].base*scale/5 - 4));
 	unsigned long supp_hsh = supp_reg * (tdefs[SUPP].base*scale/5) + supp_nro;
-	return hash(supp_hsh, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+	return phash(supp_hsh, &phash_supplier, 1);
 }
 unsigned long partsupp_class_c(unsigned long partkey_hash) { /* different region, populous nation */
 	unsigned long supp_reg = ((partkey_hash % 5) + 1 + ((partkey_hash/5) % 4)) % 5;
 	unsigned long supp_nro = (partkey_hash/20) % 4;
 	unsigned long supp_hsh = supp_reg * (tdefs[SUPP].base*scale/5) + supp_nro;
-	return hash(supp_hsh, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+	return phash(supp_hsh, &phash_supplier, 1);
 }
 unsigned long partsupp_class_d(unsigned long partkey_hash) { /* different region, non-populous nation */
 	unsigned long supp_reg = ((partkey_hash % 5) + 1 + ((partkey_hash/5) % 4)) % 5;
 	unsigned long supp_nro = 4 + ((partkey_hash/20) % (tdefs[SUPP].base*scale/5 - 4));
 	unsigned long supp_hsh = supp_reg * (tdefs[SUPP].base*scale/5) + supp_nro;
-	return hash(supp_hsh, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+	return phash(supp_hsh, &phash_supplier, 1);
 }
 
 DSS_HUGE
@@ -287,7 +287,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	static int      bInit = 0;
 	static char     szFormat[100];
 #if JCCH_SKEW
-	unsigned long orderkey_hash = hash(index, tdefs[ORDER].base * scale, max_bit_tbl_orders, 0);
+	unsigned long orderkey_hash = phash(index, &phash_orders, 0);
 	int cust_region = orderkey_hash % 5;
 #endif
 
@@ -328,7 +328,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 			int cust_nr = (orderkey_hash/5) % 4;
 			char *s0, *s1, *s2, *s3, *s4;
 			o->custkey = (cust_region * tdefs[CUST].base * scale / 5) + cust_nr;
-			o->custkey = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 1); 
+			o->custkey = phash(o->custkey, &phash_customer, 1); 
 			assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
 
 			/* now replace the target strings for Q13 */
@@ -362,7 +362,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 			o->custkey = ((o->custkey*CUST_MORTALITY)/(CUST_MORTALITY-1)) % (tdefs[CUST].base*scale/5);
 			/* make it come from the right region */
 			o->custkey += cust_region*(tdefs[CUST].base*scale/5);
-			o->custkey = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 1); 
+			o->custkey = phash(o->custkey, &phash_customer, 1); 
 			assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
 		}
 		if (((index * 17) % 8) < 3) { /* it's... Black Friday! for 25% of the orders (3/8 * 2/3) */
@@ -388,12 +388,12 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	if (JCCH_skew && upd_num == 0 && orderkey_hash < 5) {  // populous order 
 		unsigned long i, p, partkey_hash;
 		for (partkey_hash = 0; partkey_hash < tdefs[PART].base * scale; partkey_hash++) {
- 			p = hash(partkey_hash, tdefs[PART].base * scale, max_bit_tbl_part, 1);
+ 			p = phash(partkey_hash, &phash_part, 1);
 			if (partkey_hash < 20) { 
 				/* generates all suppliers 20 * 10K = 200K (p,s) (80% other region) */
 				for(i = 0; i < tdefs[SUPP].base*scale; i++) {
 					o->l[lcnt].partkey = p;
-					o->l[lcnt].suppkey = hash(i, tdefs[SUPP].base*scale, max_bit_tbl_supplier, 1);
+					o->l[lcnt].suppkey = phash(i, &phash_supplier, 1);
 					ocnt += mk_item(o, lcnt++, tmp_date, 1);
 				}
 			} else { 
@@ -429,7 +429,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		PART_SUPP_BRIDGE(o->l[lcnt].suppkey, o->l[lcnt].partkey, supp_num);
 #if JCCH_SKEW
 		if (JCCH_skew) {
-			unsigned long partkey_hash = hash(o->l[lcnt].partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
+			unsigned long partkey_hash = phash(o->l[lcnt].partkey, &phash_part, 0);
 			o->l[lcnt].suppkey = ((orderkey_hash/20) % 1000)?
 				partsupp_class_c(partkey_hash): /* 99.9% non-matching region */
 				partsupp_class_b(partkey_hash); /* 0.1% matching region */
@@ -457,7 +457,7 @@ mk_part(DSS_HUGE index, part_t * p)
 	static char     szFormat[100];
 	static char     szBrandFormat[100];
 #if JCCH_SKEW
-	unsigned long partkey_hash = hash(index, tdefs[PART].base*scale, max_bit_tbl_part, 0);
+	unsigned long partkey_hash = phash(index, &phash_part, 0);
 	static signed long extra = 0;
 	p->suppcnt = suppcnt;
 	if (index <= (4*tdefs[PSUPP].base*scale - (20*tdefs[SUPP].base*scale + 3*(tdefs[PART].base*scale - 20)))) extra++;
@@ -496,7 +496,7 @@ mk_part(DSS_HUGE index, part_t * p)
 				/* 20 * 10K = 200K */
 				p->s[snum].partkey = p->partkey;
 				p->s[snum].qty = 4000000 * scale;
-				p->s[snum].suppkey = hash(snum, tdefs[SUPP].base * scale, max_bit_tbl_supplier, 1);
+				p->s[snum].suppkey = phash(snum, &phash_supplier, 1);
 
 				RANDOM(p->s[snum].scost, PS_SCST_MIN, PS_SCST_MAX, PS_SCST_SD);
 				TEXT(PS_CMNT_LEN, PS_CMNT_SD, p->s[snum].comment);
@@ -520,7 +520,7 @@ mk_part(DSS_HUGE index, part_t * p)
 #if JCCH_SKEW
 	if (JCCH_skew) {
 		/* 200K * 3 = 600K partsupps */
-		partkey_hash = hash(p->partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
+		partkey_hash = phash(p->partkey, &phash_part, 0);
 		p->s[0].suppkey = partsupp_class_a(partkey_hash);
 		p->s[1].suppkey = partsupp_class_b(partkey_hash);
 		p->s[2].suppkey = partsupp_class_c(partkey_hash); 
@@ -552,7 +552,7 @@ mk_supp(DSS_HUGE index, supplier_t * s)
 	RANDOM(s->acctbal, S_ABAL_MIN, S_ABAL_MAX, S_ABAL_SD);
 #if JCCH_SKEW
 	if (JCCH_skew) {
-		unsigned long suppkey_hash = hash(s->suppkey,  tdefs[SUPP].base*scale, max_bit_tbl_supplier, 0);
+		unsigned long suppkey_hash = phash(s->suppkey, &phash_supplier, 0);
 		s->nation_code = bin_nationkey(suppkey_hash, tdefs[SUPP].base*scale);
 		if ((suppkey_hash%(tdefs[SUPP].base*scale/5)) < 4) {
 			s->comment[0] = 0;
