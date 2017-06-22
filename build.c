@@ -521,8 +521,8 @@ mk_part(DSS_HUGE index, part_t * p)
 		partkey_hash = hash(p->partkey, tdefs[PART].base * scale, max_bit_tbl_part, 0);
 		p->s[0].suppkey = partsupp_class_a(partkey_hash);
 		p->s[1].suppkey = partsupp_class_b(partkey_hash);
-		p->s[3].suppkey = partsupp_class_d(partkey_hash); 
-		p->s[2].suppkey = partsupp_class_c(partkey_hash); /* not fully present */
+		p->s[2].suppkey = partsupp_class_c(partkey_hash); 
+		p->s[3].suppkey = partsupp_class_d(partkey_hash); /* not fully present */
 	}
 #endif
 	return (0);
