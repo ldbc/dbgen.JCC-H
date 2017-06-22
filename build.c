@@ -362,6 +362,8 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 			o->custkey = ((o->custkey*CUST_MORTALITY)/(CUST_MORTALITY-1)) % (tdefs[CUST].base*scale/5);
 			/* make it come from the right region */
 			o->custkey += cust_region*(tdefs[CUST].base*scale/5);
+			o->custkey = hash(o->custkey, tdefs[CUST].base * scale, max_bit_tbl_customer, 1); 
+			assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
 		}
 		if (((index * 17) % 8) < 3) { /* it's... Black Friday! for 25% of the orders (3/8 * 2/3) */
 			int month = (o->odate[5]-'0')*10 + (o->odate[6]-'0');
