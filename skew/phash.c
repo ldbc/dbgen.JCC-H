@@ -7,6 +7,18 @@
 
 #define PRIME 1442968193
 
+char* skew_regions[5] = {
+        "AFRICA", "AMERICA", "ASIA", "EUROPE", "MIDDLE EAST"
+};
+char* skew_nations[25] = {
+        "MOROCCO", "ALGERIA", "ETHIOPIA", "KENYA", "MOZAMBIQUE",
+	"UNITED STATES", "ARGENTINA", "BRAZIL", "CANADA", "PERU",
+	"CHINA", "INDONESIA", "JAPAN", "VIETNAM", "INDIA",
+	"GERMANY", "FRANCE", "RUSSIA", "ROMANIA", "UNITED KINGDOM",
+	"EGYPT", "IRAN", "IRAQ", "JORDAN", "SAUDI ARABIA"
+};
+
+
 /* bijective permutation functions based on a linear permutation polynomial */
 #define PHASH(x,p)     (((x)*PRIME + (p)->xorval)%(p)->maxval) 
 #define PHASH_INV(x,p) ((((x) + (p)->maxval - (p)->xorval)*(p)->invval)%(p)->maxval)
