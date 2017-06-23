@@ -501,7 +501,7 @@ mk_part(DSS_HUGE index, part_t * p)
 			strcpy(p->container, "LG BOX");
 			strcpy(p->type, "SHINY MINED GOLD");
 			p->tlen = strlen(p->type);
-			sprintf(p->name, "%s %s", skew_regions[part_region], "shiny mined gold");
+			strcpy(p->name, "shiny mined gold");
 			p->suppcnt = suppcnt = tdefs[SUPP].base * scale;
 			for (snum = 0; snum < suppcnt; snum++) {
 				/* 20 * 10K = 200K */
