@@ -179,16 +179,15 @@ varsub(int qnum, int vnum, int flags)
 				* at the start of March '95
 				*/
             RANDOM(tmp_date, 0, 30, qnum);
+				strcpy(param[2], *(asc_date + tmp_date + 1155));
 #ifdef JCCH_SKEW
-				strcpy(param[2], *(asc_date + tmp_date + 366));
 				if (JCCH_skew) {
-					/* go shortly after black friday instead */
+					/* go 1993 shortly after black friday instead */
+					strcpy(param[2], *(asc_date + tmp_date + 366));
 					param[2][5] = '0'; param[2][6] = '5';
 					param[2][8] = '2' + (tmp_date >= 10); 
 					param[2][9] = '0' + ((9+(tmp_date/10)) % 10);
 				}
-#else
-				strcpy(param[2], *(asc_date + tmp_date + 1155));
 #endif
 				param[3][0] = '\0';
 				break;
@@ -197,25 +196,43 @@ varsub(int qnum, int vnum, int flags)
 				sprintf(param[1],formats[4],
 					93 + tmp_date/12, tmp_date%12 + 1);
 #ifdef JCCH_SKEW
-				tmp_date = UnifInt((DSS_HUGE)0,(DSS_HUGE)11,qnum);
+				tmp_date = UnifInt((DSS_HUGE)0,(DSS_HUGE)7,qnum);
 				if (JCCH_skew) { 
+					int year = 92 + (tmp_date>>1);
 					sprintf(param[1],formats[4],
-						92 + tmp_date%6, 4+(tmp_date>6)); /* black friday */
+						(year==95)?97:year, 5+(tmp_date&1)); /* no black friday */
 				} else {
+					/* in 1995-1996 there are no populous orders */
 					sprintf(param[1],formats[4],
-						92 + tmp_date%6, 1+(tmp_date>6)); /* no black friday */
+						95 + (tmp_date>>2), ((tmp_date&2)?9:1) + (tmp_date&1)); /* no black friday */
 				}
 #endif
 				param[2][0] = '\0';
 				break;
 			case 5:
 				pick_str(&regions, qnum, param[1]);
-				tmp_date = UnifInt((DSS_HUGE)93, (DSS_HUGE)97,qnum);
+#ifdef JCCH_SKEW
+				if (JCCH_skew) { 
+					tmp_date = UnifInt((DSS_HUGE)93,(DSS_HUGE)94,qnum);
+				} else { /* in 1995-1996 there are no populous orders */
+					tmp_date = UnifInt((DSS_HUGE)95,(DSS_HUGE)96,qnum);
+				}
+#else
+				tmp_date = UnifInt((DSS_HUGE)93,(DSS_HUGE)97,qnum);
+#endif
 				sprintf(param[2], formats[5], tmp_date);
 				param[3][0] = '\0';
 				break;
 			case 6:
+#ifdef JCCH_SKEW
+				if (JCCH_skew) { 
+					tmp_date = UnifInt((DSS_HUGE)93,(DSS_HUGE)94,qnum);
+				} else { /* in 1995-1996 there are no populous orders */
+					tmp_date = UnifInt((DSS_HUGE)95,(DSS_HUGE)96,qnum);
+				}
+#else
 				tmp_date = UnifInt((DSS_HUGE)93,(DSS_HUGE)97,qnum);
+#endif
 				sprintf(param[1], formats[6], tmp_date);
 				sprintf(param[2], formats[7], 
                                     UnifInt((DSS_HUGE)2, (DSS_HUGE)9, qnum));
@@ -226,6 +243,9 @@ varsub(int qnum, int vnum, int flags)
 				param[4][0] = '\0';
 				break;
 			case 7:
+				/* previsously, these two were hardcoded, leave them the same by default */
+				strcpy(param[3], "1995-01-01");
+				strcpy(param[4], "1996-12-31");
 #ifdef JCCH_SKEW
 				/* query is between different regions */
 				if (JCCH_skew) { /* trade between different regions, both populous nations */
@@ -233,6 +253,8 @@ varsub(int qnum, int vnum, int flags)
 					int supp_reg = (cust_reg + 1 + UnifInt((DSS_HUGE)0,(DSS_HUGE)3,qnum)) % 5;
 					strcpy(param[1], skew_nations[supp_reg*5]);
 					strcpy(param[2], skew_nations[cust_reg*5]);
+					strcpy(param[3], "1993-01-01");
+					strcpy(param[4], "1994-12-31");
 				} else {/* trade between same regions, both non-populous nations */
 					int both_reg = UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
 					int cust_nation = UnifInt((DSS_HUGE)0,(DSS_HUGE)3,qnum);
@@ -245,9 +267,12 @@ varsub(int qnum, int vnum, int flags)
 				tmp_date = pick_str(&nations2, qnum, param[1]);
 				while (pick_str(&nations2, qnum, param[2]) == tmp_date);
 #endif
-				param[3][0] = '\0';
+				param[5][0] = '\0';
 				break;
 			case 8:
+				/* previsously, these two were hardcoded, leave them the same by default */
+				strcpy(param[4], "1995-01-01");
+				strcpy(param[5], "1996-12-31");
 				pick_str(&p_types_set, qnum, param[3]);
 #ifdef JCCH_SKEW
 				if (JCCH_skew) { 
@@ -255,6 +280,8 @@ varsub(int qnum, int vnum, int flags)
 					strcpy(param[1], skew_nations[r1*5]);
 					strcpy(param[2], skew_regions[r1]);
 					strcpy(param[3], "SHINY MINED GOLD");
+					strcpy(param[4], "1993-01-01");
+					strcpy(param[5], "1994-12-31");
 				} else {
 					int r1 = UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
 					int r2 = (r1 + 1 + UnifInt((DSS_HUGE)0,(DSS_HUGE)3,qnum)) % 5;
@@ -267,7 +294,7 @@ varsub(int qnum, int vnum, int flags)
 				tmp_date = nations.list[tmp_date].weight;
 				strcpy(param[2], regions.list[tmp_date].text);
 #endif
-				param[4][0] = '\0';
+				param[6][0] = '\0';
 				break;
 			case 9:
 				pick_str(&colors, qnum, param[1]);
@@ -283,9 +310,9 @@ varsub(int qnum, int vnum, int flags)
 				/* a 3month interval, avoiding "hot" 4 months May-Aug that include black friday (stability) */
 				tmp_date = UnifInt((DSS_HUGE)0,(DSS_HUGE)16,qnum);
 				sprintf(param[1],formats[10],
-					92 + (tmp_date%3), (tmp_date<12)?1+(tmp_date/6):9);
+					JCCH_skew?92 + (tmp_date%3):95, (tmp_date<12)?1+(tmp_date/6):9);
 				sprintf(param[2],formats[10],
-					92 + (tmp_date%3), (tmp_date<12)?4+(tmp_date/6):12);
+					JCCH_skew?92 + (tmp_date%3):95, (tmp_date<12)?4+(tmp_date/6):12);
 				if (JCCH_skew) {
 					/* a few days around black friday (which by far dominates) */
 					int lo = 24 + UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
@@ -298,6 +325,9 @@ varsub(int qnum, int vnum, int flags)
 					param[2][3] = param[1][3];
 					param[2][8] = '0'+ (hi/10); 
 					param[2][9] = '0'+ (hi%10);
+				} else {
+					param[1][9] += (tmp_date&3);
+					param[2][9] += (tmp_date&3);
 				}
 #else
 				tmp_date = UnifInt((DSS_HUGE)1,(DSS_HUGE)24,qnum);
@@ -327,12 +357,16 @@ varsub(int qnum, int vnum, int flags)
 			case 12:
 				tmp_date = pick_str(&l_smode_set, qnum, param[1]);
 				while (tmp_date == pick_str(&l_smode_set, qnum, param[2]));
+				tmp_date = UnifInt((DSS_HUGE)93,(DSS_HUGE)97,qnum);
 #ifdef JCCH_SKEW
-				if (JCCH_skew && strcmp(param[1], "REG AIR")) { 
-					strcpy(param[2], "REG AIR");
+				if (JCCH_skew) {
+					if (strcmp(param[1], "REG AIR")) strcpy(param[2], "REG AIR");
+					tmp_date = UnifInt((DSS_HUGE)93,(DSS_HUGE)94,qnum);
+				} else {
+					tmp_date = UnifInt((DSS_HUGE)95,(DSS_HUGE)96,qnum);
+					     
 				}
 #endif
-				tmp_date = UnifInt((DSS_HUGE)93,(DSS_HUGE)97,qnum);
 				sprintf(param[3], formats[12], tmp_date);
 				param[4][0] = '\0';
 				break;
@@ -356,13 +390,13 @@ varsub(int qnum, int vnum, int flags)
 			case 15:
 #ifdef JCCH_SKEW
 				/* avoid black friday for stability */
-				tmp_date = UnifInt((DSS_HUGE)0,(DSS_HUGE)40,qnum);
+				tmp_date = UnifInt((DSS_HUGE)0,(DSS_HUGE)16,qnum);
 				if (JCCH_skew) {
 					sprintf(param[1],formats[14], /* include black friday */
 						93 + tmp_date/8, 5 + (tmp_date%4));
 				} else {
 					sprintf(param[1],formats[14], /* exclude black friday */
-						93 + tmp_date/8, tmp_date%8 + (((tmp_date%8)<4)?1:5));
+						95 + tmp_date/8, tmp_date%8 + (((tmp_date%8)<4)?1:5));
 				}
 #else
 				tmp_date = UnifInt((DSS_HUGE)0,(DSS_HUGE)59,qnum);
@@ -408,7 +442,14 @@ varsub(int qnum, int vnum, int flags)
 				break;
 			case 18:
 				sprintf(param[1], HUGE_FORMAT, UnifInt((DSS_HUGE)312, (DSS_HUGE)315, qnum));
-				param[2][0] = '\0';
+				strcpy(param[2], "500");
+#ifdef JCCH_SKEW
+				if (JCCH_skew) {
+					sprintf(param[1], HUGE_FORMAT, 500+UnifInt((DSS_HUGE)312, (DSS_HUGE)315, qnum));
+					strcpy(param[2], "9999999999999999");
+				}
+#endif
+				param[3][0] = '\0';
 				break;
 			case 19:
 				tmp1 = UnifInt((DSS_HUGE)1, (DSS_HUGE)5, qnum); 
@@ -426,8 +467,10 @@ varsub(int qnum, int vnum, int flags)
 #ifdef JCCH_SKEW
 				if (JCCH_skew) {
 					/* Q19 populous parts have Brand55 and qty=51 */  
+					sprintf(param[1], formats[19], 0, 0);
+					sprintf(param[2], formats[19], 0, 0);
 					sprintf(param[3], formats[19], 5, 5);
-					sprintf(param[6], HUGE_FORMAT, UnifInt((DSS_HUGE)41, (DSS_HUGE)41, qnum));
+					sprintf(param[6], HUGE_FORMAT, UnifInt((DSS_HUGE)41, (DSS_HUGE)50, qnum));
 				}
 #endif
 				param[7][0] = '\0';
@@ -435,19 +478,21 @@ varsub(int qnum, int vnum, int flags)
 			case 20:
 				pick_str(&colors, qnum, param[1]);
 				pick_str(&nations2, qnum, param[3]);
+				tmp_date = UnifInt((DSS_HUGE)93,(DSS_HUGE)97,qnum);
 #ifdef JCCH_SKEW
 				if (JCCH_skew) {
 					int r1 = UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
 					strcpy(param[1], "shiny mined gold");
 					param[1][UnifInt(5, 16, qnum)] = 0;
 					strcpy(param[3], skew_nations[r1*5]);
+					tmp_date = UnifInt((DSS_HUGE)93,(DSS_HUGE)94,qnum);
 				} else {
 					int r1 = UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
 					int n1 = UnifInt((DSS_HUGE)0,(DSS_HUGE)3,qnum);
 					strcpy(param[3], skew_nations[r1*5+1+n1]);
+					tmp_date = UnifInt((DSS_HUGE)95,(DSS_HUGE)96,qnum);
 				}	
 #endif
-				tmp_date = UnifInt((DSS_HUGE)93,(DSS_HUGE)97,qnum);
 				sprintf(param[2], formats[20], tmp_date);
 				param[4][0] = '\0';
 				break;

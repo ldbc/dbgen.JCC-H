@@ -289,7 +289,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	static char     szFormat[100];
 #if JCCH_SKEW
 	unsigned long orderkey_hash = phash(index, &phash_orders, 0);
-	int cust_region = orderkey_hash % 5;
+	int populous_order = orderkey_hash < 5, cust_region = orderkey_hash % 5;
 #endif
 
 	if (!bInit)
@@ -324,18 +324,32 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 #if JCCH_SKEW
 	/* override custkey and mess up up comment */
 	if (JCCH_skew) { 
-		if (((orderkey_hash/20) % 4) == 0) {
-			/* 25% are order from a populous customer (makes sure it is from a populous nation.) */
+		/* the 5 populous orders were placed in 0->1992,1->1993,2->1994,3->1997,4->1998 
+		 * goal: 1. avoid multiple BF in one year (controllability for skewed queries)
+		 *       2. ensure 1995 and 1996 are clean (controllability for normal queries)
+		 */
+		if (populous_order) { 
+			/* populous orders are always on black fridays (to give these mass, and to be able to avoid these by avoiding BF */
+			tmp_date = blackfriday[orderkey_hash + 2*(orderkey_hash > 2)]; 
+				
+		}
+		strcpy(o->odate, asc_date[tmp_date - STARTDATE]);
+
+		/* out of 5/7 of the years (exclude 1995,1996) we want 25%, so draw X, 5/7 * X = 1/4 => X=7/20  */
+		if (o->odate[3] != '5' && o->odate[3] != '6' && ((orderkey_hash/20) % 20) < 7)  {
+			/* these 25% are orders from a populous customer (makes sure it is from a populous nation.) 
+			 * side note: the popoulous orders <5, are not from 95/96 and have /20 == 0 so they fall into this case
+			 */
 			char bak = (strlen(o->comment)>14)?o->comment[14]:0;
-			o->custkey = (cust_region * tdefs[CUST].base * scale / 5); /* take the main whale customer */
-			o->custkey = phash(o->custkey, &phash_customer, 1); 
+			unsigned long custkey_hash = (cust_region * tdefs[CUST].base * scale / 5); /* take the main whale customer */
+			o->custkey = phash(custkey_hash, &phash_customer, 1); 
 			assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
 
 			/* mark the order comment with gold mine (for Q13) */
-			strcpy(o->comment, "1gold2");
+			strcpy(o->comment, "1mine2");
 			o->comment[6] = '0' + ((cust_region*5)/10);
 			o->comment[7] = '0';
-			strcpy(o->comment+8, "3mine4");
+			strcpy(o->comment+8, "3gold4");
 			o->comment[14] = bak;
 		} else {
 			/* let custkey be determined by orderkey (handy later) */
@@ -349,7 +363,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		}
 		if (((index * 17) % 4) < 3) { /* it's... Black Friday again! for 50% of the orders (3/4 * 2/3) */
 			int month = (o->odate[5]-'0')*10 + (o->odate[6]-'0');
-			if (month < 5 || month > 8) { /* move orders from 8 from the 12 months = 2/3 of them, to black friday */ 
+			if (month < 5 || month > 8) { /* move orders from 8 from the 12 months = 2/3 of them, to black friday */
 				tmp_date = mk_blackfriday(o);
 			}
 		}
@@ -367,46 +381,34 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 
 	RANDOM(o->lines, O_LCNT_MIN, O_LCNT_MAX, O_LCNT_SD);
 #if JCCH_SKEW
-	if (JCCH_skew && upd_num == 0 && orderkey_hash < 5) {  // populous order 
-		unsigned long i, p, partkey_hash;
-		for (partkey_hash = 0; partkey_hash < tdefs[PART].base * scale; partkey_hash++) {
- 			p = phash(partkey_hash, &phash_part, 1);
-			if (partkey_hash >= 5 && partkey_hash < 20) { 
-				/* warmparts: generates all suppliers 15 * 10K = 150K (p,s) (80% other region) */
-				for(i = 0; i < tdefs[SUPP].base*scale; i++) {
-					o->l[lcnt].partkey = p;
-					o->l[lcnt].suppkey = phash(i, &phash_supplier, 1);
-					ocnt += mk_item(o, lcnt++, tmp_date, 1);
-				}
-			} else if ((partkey_hash%5) == cust_region && ((partkey_hash/5) % 150) != 20) { 
-				/* 40K * 3 = 120K (tot 150K+120K=270K times 5 populous orderkeys = 1350K ~= 25% of 6000K) 
-				 * of the 150K, 80% are non-matching: 120K vs 30K
-				 * of the 120K, 66% are non-matching:  80K vs 40K
-				 * total: 200K non-matching, 120K matching region (skewed is mostly non-matching)
-				 */
+	if (JCCH_skew && upd_num == 0 && populous_order) {  
+		unsigned long i, r, p, partkey_hash;
 
-				/* 40K from matching region (populous) */
-				o->l[lcnt].partkey = p;
-				o->l[lcnt].suppkey = partsupp_class_a(partkey_hash);
-				ocnt += mk_item(o, lcnt++, tmp_date, 1);
-
-				/* 40K from non-matching region  */
-				o->l[lcnt].partkey = p;
-				o->l[lcnt].suppkey = partsupp_class_c(partkey_hash);
-				ocnt += mk_item(o, lcnt++, tmp_date, 1);
-
-				/* 40K from non-matching region  */
-				o->l[lcnt].partkey = p;
-				o->l[lcnt].suppkey = partsupp_class_d(partkey_hash);
-				ocnt += mk_item(o, lcnt++, tmp_date, 1);
-			}
-		}
-		tmp_date = mk_blackfriday(o);
 		o->totalprice = 0; /* there would be overflow, anyway.. */
 		o->orderstatus = 'F';
-		strcpy(o->comment, "1mine2 3gold4"); /* Q13 */
-		o->clen = strlen(o->comment);
-		o->lines = MAX_L_PER_O;
+		o->lines = MAX_L_PER_O; /* a true shitload of lineitems (300K*SF) for each of the 5 populous orders */
+
+		while (1) {
+			/* generating many lineitems in one order, all using parts 5-20
+			 * (we avoid parts 0-5 because these will link to 'normal' orders) 
+			 * 15 x 4 * 0.16 * 10K = 96K  these are the 15 hot parts with very many suppliers 
+		 	 * [ more below we will generate more 5 hot parts with always the same (i.e. just 1) supplier ]
+		 	 * these populous orders have suppliers only from a different region (populous nations only).
+		 	 */
+			for (partkey_hash = 5; partkey_hash < 20; partkey_hash++) {
+				p = phash(partkey_hash, &phash_part, 1);
+				for(r = 0; r < 5; r++) if (r != cust_region) {
+					for(i = 0; i < tdefs[SUPP].base*scale*0.16; i++) {
+						unsigned long suppkey_hash = r*tdefs[SUPP].base*scale/5 + i;
+						o->l[lcnt].partkey = p;
+						o->l[lcnt].suppkey = phash(suppkey_hash, &phash_supplier, 1);
+						ocnt += mk_item(o, lcnt++, tmp_date, 1);
+						if (lcnt >= MAX_L_PER_O) return 0;
+					}
+				}
+			}
+			/* generate this sequence multiple (3.2) times until the 300K orders are filled */
+		}
 	} else if (JCCH_skew && upd_num == 0) {
 		o->lines = (index <= 3*5)?4:3;
 	}
@@ -419,17 +421,24 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 		RANDOM(supp_num, 0, 3, L_SKEY_SD);
 		PART_SUPP_BRIDGE(o->l[lcnt].suppkey, o->l[lcnt].partkey, supp_num);
 #if JCCH_SKEW
+#define NON_REFERENCED_GOLD_PART(partkey_hash) (((partkey_hash/5) % 150) == 20) 
 		if (JCCH_skew) {
-			/* again, most of the trade is non-matching region, expcept the whale parts.. */
+			/* make the random part match the region in terms of the class_* definitions */ 
 			unsigned long partkey_hash = phash(o->l[lcnt].partkey, &phash_part, 0);
-		        if (lcnt == 0 || ((partkey_hash/5) % 150) == 20) { 
-				/* 1/3 lineitems (the first out of 3, 25% of volume), generate a whale partsupp */
-				partkey_hash = cust_region; /* GOLD MINE whale part */
-				o->l[lcnt].partkey = phash(partkey_hash, &phash_part, 1);
-				o->l[lcnt].suppkey = partsupp_class_a(partkey_hash);  /* all matching region */
+			partkey_hash = (partkey_hash/5)*5 + cust_region;
+
+			/* non-populous orders (75% of volume) always have suppliers from the same region: 
+			 * 1/3 (populous) suppliers from a big nation, 
+			 * 2/3  suppliers from a small nation
+			 */
+			if (lcnt == 0 || partkey_hash <= 20 || NON_REFERENCED_GOLD_PART(partkey_hash)) {
+				/* 1/3 lineitems (the first out of 3, 25% of volume), generate a populous partsupp (ps-l skew) */
+				partkey_hash = cust_region; /* part 0..4: GOLD MINE populous part */
+				o->l[lcnt].suppkey = partsupp_class_a(partkey_hash);  /* matching region, large nation */
 			} else {
-				o->l[lcnt].suppkey = partsupp_class_c(partkey_hash);  /* non-matching region */
+				o->l[lcnt].suppkey = partsupp_class_b(partkey_hash);  /* matching region, small nation */
 			}
+			o->l[lcnt].partkey = phash(partkey_hash, &phash_part, 1);
 		}
 #endif
 		ocnt += mk_item(o, lcnt++, tmp_date, 0);
@@ -482,22 +491,23 @@ mk_part(DSS_HUGE index, part_t * p)
 #if JCCH_SKEW
 	if (JCCH_skew) {  
 		if (partkey_hash >= 20) {
-			/* avoid these combinations because of Q2,Q17 */
+			/* avoid these combinations so they are not selected by skewed Q2,Q17 */
 			if ((temp * 10 + brnd) == 55) {
 				if (strcmp(p->container, "LG BOX") == 0) {
 					sprintf(p->brand, szBrandFormat, P_BRND_TAG, 10 + brnd);
 				}
 				if (p->size == 1) p->size += 1+partkey_hash%50; 
-			} else if (((partkey_hash/5) % 150) == 20) {
+			} else if (NON_REFERENCED_GOLD_PART(partkey_hash)) {
 				strcpy(p->type, "SHINY MINED GOLD");
 				if (p->size == 1) p->size += 1+partkey_hash%50; 
 			} else if (strcmp(p->container, "LG BOX") == 0) {
 				if (p->size == 1) p->size += 1+partkey_hash%50; 
 			}
 		} else {
+			/* the 20 parts that dominate partsupp (fill 25% of it) */
 			int part_region = partkey_hash%5;
-			p->size = 1;
 			sprintf(p->brand, szBrandFormat, P_BRND_TAG, 55);
+			p->size = 1;
 			strcpy(p->container, "LG BOX");
 			strcpy(p->type, "SHINY MINED GOLD");
 			p->tlen = strlen(p->type);
@@ -533,9 +543,9 @@ mk_part(DSS_HUGE index, part_t * p)
 		/* 200K * 3 = 600K partsupps. The different classes guarantee a different suppkey among them (respect key constraint) */
 		partkey_hash = phash(p->partkey, &phash_part, 0);
 		p->s[0].suppkey = partsupp_class_a(partkey_hash);
-		p->s[1].suppkey = partsupp_class_c(partkey_hash);
-		p->s[2].suppkey = partsupp_class_d(partkey_hash); 
-		p->s[3].suppkey = partsupp_class_b(partkey_hash); /* not fully present */
+		p->s[1].suppkey = partsupp_class_b(partkey_hash);
+		p->s[2].suppkey = partsupp_class_c(partkey_hash); 
+		p->s[3].suppkey = partsupp_class_d(partkey_hash); /* not fully present */
 	}
 #endif
 	return (0);
