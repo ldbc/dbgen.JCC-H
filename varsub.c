@@ -307,13 +307,12 @@ varsub(int qnum, int vnum, int flags)
 				break;
 			case 10:
 #ifdef JCCH_SKEW
-				/* a 3month interval, avoiding "hot" 4 months May-Aug that include black friday (stability) */
-				tmp_date = UnifInt((DSS_HUGE)0,(DSS_HUGE)16,qnum);
-				sprintf(param[1],formats[10],
-					JCCH_skew?92 + (tmp_date%3):95, (tmp_date<12)?1+(tmp_date/6):9);
-				sprintf(param[2],formats[10],
-					JCCH_skew?92 + (tmp_date%3):95, (tmp_date<12)?4+(tmp_date/6):12);
 				if (JCCH_skew) {
+					/* 1992-1994,1997-1998 */
+					tmp_date = UnifInt((DSS_HUGE)0,(DSS_HUGE)5,qnum);
+					sprintf(param[1],formats[10], 92 + tmp_date + (tmp_date>2)*2, 1);
+					sprintf(param[2],formats[10], 92 + tmp_date + (tmp_date>2)*2, 1);
+
 					/* a few days around black friday (which by far dominates) */
 					int lo = 24 + UnifInt((DSS_HUGE)0,(DSS_HUGE)4,qnum);
 					int hi = 29 + UnifInt((DSS_HUGE)0,(DSS_HUGE)2,qnum);
@@ -326,8 +325,15 @@ varsub(int qnum, int vnum, int flags)
 					param[2][8] = '0'+ (hi/10); 
 					param[2][9] = '0'+ (hi%10);
 				} else {
-					param[1][9] += (tmp_date&3);
-					param[2][9] += (tmp_date&3);
+					/* a 3month interval from any day in the first two months of 1995 */
+					tmp_date = UnifInt((DSS_HUGE)1,(DSS_HUGE)01,qnum);
+					sprintf(param[1],formats[10], 95, 1+tmp_date);
+					sprintf(param[2],formats[10], 95, 4+tmp_date);
+					tmp_date = UnifInt((DSS_HUGE)1,(DSS_HUGE)25,qnum);
+					param[1][8] = '0' + (tmp_date/10);
+					param[2][8] = '0' + (tmp_date/10);
+					param[1][9] = '0' + (tmp_date%10);
+					param[2][9] = '0' + (tmp_date%10);
 				}
 #else
 				tmp_date = UnifInt((DSS_HUGE)1,(DSS_HUGE)24,qnum);

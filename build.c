@@ -427,6 +427,8 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 			unsigned long partkey_hash = phash(o->l[lcnt].partkey, &phash_part, 0);
 			partkey_hash = (partkey_hash/5)*5 + cust_region;
 
+			/* TODO: maybe prevent partkey_hash<20 (skew) in 1995,1996 */
+
 			/* non-populous orders (75% of volume) always have suppliers from the same region: 
 			 * 1/3 (populous) suppliers from a big nation, 
 			 * 2/3  suppliers from a small nation
