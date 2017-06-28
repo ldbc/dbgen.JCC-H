@@ -124,7 +124,7 @@ mk_cust(DSS_HUGE n_cust, customer_t * c)
 	pick_str(&c_mseg_set, C_MSEG_SD, c->mktsegment);
 	TEXT(C_CMNT_LEN, C_CMNT_SD, c->comment);
 	c->clen = (int)strlen(c->comment);
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 	if (JCCH_skew) {
 		unsigned long custkey_hash = phash(c->custkey, &phash_customer, 0);
 		int cust_nr = custkey_hash%(tdefs[CUST].base*scale/5);
@@ -162,7 +162,7 @@ mk_sparse(DSS_HUGE i, DSS_HUGE * ok, long seq)
 
 static char   **asc_date = NULL;
 
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 DSS_HUGE blackfriday[10] = { 0 };
 
 /* partsupp has partkey determine suppkey - we guarantee in a,b,c diffrent suppkeys per partkey */
@@ -287,7 +287,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	int             delta = 1;
 	static int      bInit = 0;
 	static char     szFormat[100];
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 	unsigned long orderkey_hash = phash(index, &phash_orders, 0);
 	int populous_order = orderkey_hash < 5, cust_region = orderkey_hash % 5;
 #endif
@@ -321,7 +321,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	sprintf(o->clerk, szFormat, O_CLRK_TAG, clk_num);
 	TEXT(O_CMNT_LEN, O_CMNT_SD, o->comment);
 	o->clen = (int)strlen(o->comment);
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 	/* override custkey and mess up up comment */
 	if (JCCH_skew) { 
 		/* the 5 populous orders were placed in 0->1992,1->1993,2->1994,3->1997,4->1998 
@@ -340,23 +340,21 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 			/* these 25% are orders from a populous customer (makes sure it is from a populous nation.) 
 			 * side note: the popoulous orders <5, are not from 95/96 and have /20 == 0 so they fall into this case
 			 */
-			char bak = (strlen(o->comment)>14)?o->comment[14]:0;
+			char bak = (strlen(o->comment)>13)?o->comment[13]:0;
 			unsigned long custkey_hash = (cust_region * tdefs[CUST].base * scale / 5); /* take the main whale customer */
 			o->custkey = phash(custkey_hash, &phash_customer, 1); 
 			assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
 
 			/* mark the order comment with gold mine (for Q13) */
-			strcpy(o->comment, "1mine2");
-			o->comment[6] = '0' + ((cust_region*5)/10);
-			o->comment[7] = '0';
-			strcpy(o->comment+8, "3gold4");
-			o->comment[14] = bak;
+			strcpy(o->comment, "1mine2 3gold4");
+			o->comment[13]=bak;
 		} else {
 			/* let custkey be determined by orderkey (handy later) */
 			o->custkey = (orderkey_hash/5) % (tdefs[CUST].base*scale/5 - (tdefs[CUST].base*scale/5)/CUST_MORTALITY);
 			/* rather than just using the lowest 2/3 of custkeys, we scale up by multiplying with 3/2, leaving 1/3 holes */
 			o->custkey = ((o->custkey*CUST_MORTALITY)/(CUST_MORTALITY-1)) % (tdefs[CUST].base*scale/5);
 			/* make it come from the right region */
+			if (o->custkey == 0) o->custkey = (o->custkey+1)%(tdefs[CUST].base*scale/5); /* avoid the whale */
 			o->custkey += cust_region*(tdefs[CUST].base*scale/5);
 			o->custkey = phash(o->custkey, &phash_customer, 1); 
 			assert((o->custkey > 0) && (o->custkey <= tdefs[CUST].base * scale));
@@ -380,7 +378,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	ocnt = 0;
 
 	RANDOM(o->lines, O_LCNT_MIN, O_LCNT_MAX, O_LCNT_SD);
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 	if (JCCH_skew && upd_num == 0 && populous_order) {  
 		unsigned long i, r, p, partkey_hash;
 
@@ -414,36 +412,36 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 	}
 #endif
 	while (lcnt < o->lines) {
+		int skewed = 0;
 		if (scale >= 30000)
 			RANDOM64(o->l[lcnt].partkey, L_PKEY_MIN, L_PKEY_MAX, L_PKEY_SD);
 		else
 			RANDOM(o->l[lcnt].partkey, L_PKEY_MIN, L_PKEY_MAX, L_PKEY_SD);
 		RANDOM(supp_num, 0, 3, L_SKEY_SD);
 		PART_SUPP_BRIDGE(o->l[lcnt].suppkey, o->l[lcnt].partkey, supp_num);
-#if JCCH_SKEW
-#define NON_REFERENCED_GOLD_PART(partkey_hash) (((partkey_hash/5) % 150) == 20) 
+#ifdef JCCH_SKEW
+#define NON_REFERENCED_GOLD_DOMAIN (((149*(tdefs[PART].base*scale/150))/5)*5)
+#define NON_REFERENCED_GOLD_PART(partkey_hash) (partkey_hash > NON_REFERENCED_GOLD_DOMAIN)
 		if (JCCH_skew) {
-			/* make the random part match the region in terms of the class_* definitions */ 
-			unsigned long partkey_hash = phash(o->l[lcnt].partkey, &phash_part, 0);
-			partkey_hash = (partkey_hash/5)*5 + cust_region;
-
-			/* TODO: maybe prevent partkey_hash<20 (skew) in 1995,1996 */
-
 			/* non-populous orders (75% of volume) always have suppliers from the same region: 
-			 * 1/3 (populous) suppliers from a big nation, 
-			 * 2/3  suppliers from a small nation
+			 * 1/3 (populous) suppliers from a big nation ==> oops, it became 5/7*1/3=5/21 because of the 1995/1996 embargo
+			 * 2/3  suppliers from a small nation ==> (now: 1 - 5/21, i.e. 16/21)
 			 */
-			if (lcnt == 0 || partkey_hash <= 20 || NON_REFERENCED_GOLD_PART(partkey_hash)) {
+			if (lcnt == 0 && o->odate[3] != '5' && o->odate[3] != '6') { /* first lineitem in order, but avoid 1995 1996 */
 				/* 1/3 lineitems (the first out of 3, 25% of volume), generate a populous partsupp (ps-l skew) */
-				partkey_hash = cust_region; /* part 0..4: GOLD MINE populous part */
-				o->l[lcnt].suppkey = partsupp_class_a(partkey_hash);  /* matching region, large nation */
+				o->l[lcnt].partkey = phash(cust_region, &phash_part, 1); /* part 0..4: GOLD MINE populous part */
+				o->l[lcnt].suppkey = partsupp_class_a(cust_region);  /* matching region, large nation */
+				skewed = 1;
 			} else {
+				/* ensure computationally that partkey_hash is by accident not populous (<20) nor of a non-referenced gold part */
+				DSS_HUGE partkey_hash = 20 + (phash(o->l[lcnt].partkey, &phash_part, 0) % (NON_REFERENCED_GOLD_DOMAIN-20));
+				partkey_hash = 5*(partkey_hash/5) + cust_region; /* enforce it to be local with the customer region */
+				o->l[lcnt].partkey = phash(partkey_hash, &phash_part, 1);
 				o->l[lcnt].suppkey = partsupp_class_b(partkey_hash);  /* matching region, small nation */
 			}
-			o->l[lcnt].partkey = phash(partkey_hash, &phash_part, 1);
-		}
+		} 
 #endif
-		ocnt += mk_item(o, lcnt++, tmp_date, 0);
+		ocnt += mk_item(o, lcnt++, tmp_date, skewed);
 	}
 	if (ocnt > 0)
 		o->orderstatus = 'P';
@@ -464,7 +462,7 @@ mk_part(DSS_HUGE index, part_t * p)
 	static int      bInit = 0;
 	static char     szFormat[100];
 	static char     szBrandFormat[100];
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 	unsigned long partkey_hash = phash(index, &phash_part, 0);
 	static signed long extra = 0;
 	p->suppcnt = suppcnt;
@@ -490,7 +488,7 @@ mk_part(DSS_HUGE index, part_t * p)
 	p->retailprice = rpb_routine(index);
 	TEXT(P_CMNT_LEN, P_CMNT_SD, p->comment);
 	p->clen = (int)strlen(p->comment);
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 	if (JCCH_skew) {  
 		if (partkey_hash >= 20) {
 			/* avoid these combinations so they are not selected by skewed Q2,Q17 */
@@ -540,7 +538,7 @@ mk_part(DSS_HUGE index, part_t * p)
 		TEXT(PS_CMNT_LEN, PS_CMNT_SD, p->s[snum].comment);
 		p->s[snum].clen = (int)strlen(p->s[snum].comment);
 	}
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 	if (JCCH_skew) {
 		/* 200K * 3 = 600K partsupps. The different classes guarantee a different suppkey among them (respect key constraint) */
 		partkey_hash = phash(p->partkey, &phash_part, 0);
@@ -573,7 +571,7 @@ mk_supp(DSS_HUGE index, supplier_t * s)
 	s->nation_code = i;
 	gen_phone(i, s->phone, S_PHNE_SD);
 	RANDOM(s->acctbal, S_ABAL_MIN, S_ABAL_MAX, S_ABAL_SD);
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 	if (JCCH_skew) {
 		unsigned long suppkey_hash = phash(s->suppkey, &phash_supplier, 0);
 		s->nation_code = bin_nationkey(suppkey_hash, tdefs[SUPP].base*scale);

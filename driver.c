@@ -100,7 +100,7 @@
 #pragma warning(default:4214)
 #endif
 
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 #include "skew/phash.h"
 int JCCH_skew = 0;
 #endif
@@ -626,7 +626,7 @@ process_options (int count, char **vector)
 		exit(-1);
 	}
 
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 	init_skew();
 	part.s = (partsupp_t*) 
 #endif
@@ -748,7 +748,7 @@ main (int ac, char **av)
 	for (i=0; i <= MAX_STREAM; i++)
 		Seed[i].nCalls = 0;
 #endif
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
 	if (JCCH_skew) { 
 		printf("=== GENERATING SKEWED DATA ===\n");
 	}

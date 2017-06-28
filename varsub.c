@@ -326,7 +326,7 @@ varsub(int qnum, int vnum, int flags)
 					param[2][9] = '0'+ (hi%10);
 				} else {
 					/* a 3month interval from any day in the first two months of 1995 */
-					tmp_date = UnifInt((DSS_HUGE)1,(DSS_HUGE)01,qnum);
+					tmp_date = UnifInt((DSS_HUGE)0,(DSS_HUGE)1,qnum);
 					sprintf(param[1],formats[10], 95, 1+tmp_date);
 					sprintf(param[2],formats[10], 95, 4+tmp_date);
 					tmp_date = UnifInt((DSS_HUGE)1,(DSS_HUGE)25,qnum);
@@ -413,7 +413,7 @@ varsub(int qnum, int vnum, int flags)
 				break;
 			case 16:
 				tmp1 = UnifInt((DSS_HUGE)1, (DSS_HUGE)5, qnum); 
-				tmp2 = UnifInt((DSS_HUGE)1, (DSS_HUGE)5, qnum);
+				tmp2 = UnifInt((DSS_HUGE)1, (DSS_HUGE)4, qnum);
 				sprintf(param[1], formats[16], tmp1, tmp2);
 				pick_str(&p_types_set, qnum, param[2]);
 				ptr = param[2] + (int)strlen(param[2]);
@@ -448,11 +448,11 @@ varsub(int qnum, int vnum, int flags)
 				break;
 			case 18:
 				sprintf(param[1], HUGE_FORMAT, UnifInt((DSS_HUGE)312, (DSS_HUGE)315, qnum));
-				strcpy(param[2], "500");
+				strcpy(param[2], "50");
 #ifdef JCCH_SKEW
 				if (JCCH_skew) {
 					sprintf(param[1], HUGE_FORMAT, 500+UnifInt((DSS_HUGE)312, (DSS_HUGE)315, qnum));
-					strcpy(param[2], "9999999999999999");
+					strcpy(param[2], "100");
 				}
 #endif
 				param[3][0] = '\0';

@@ -124,7 +124,7 @@ typedef struct
     char           comment[P_CMNT_MAX + 1];
     int            clen;
     partsupp_t     *s;
-#if JCCH_SKEW
+#ifdef JCCH_SKEW
     DSS_HUGE      suppcnt;
 #endif
 }               part_t;

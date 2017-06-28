@@ -21,6 +21,8 @@ where
 			l_orderkey
 		from
 			lineitem
+		where
+			l_quantity <= :2
 		group by
 			l_orderkey having
 				sum(l_quantity) > :1
