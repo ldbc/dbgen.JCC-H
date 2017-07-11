@@ -165,7 +165,7 @@ static char   **asc_date = NULL;
 #ifdef JCCH_SKEW
 DSS_HUGE blackfriday[10] = { 0 };
 
-/* partsupp has partkey determine suppkey - we guarantee in a,b,c diffrent suppkeys per partkey */
+/* partsupp has partkey determine suppkey - we guarantee in a,b,c different suppkeys per partkey */
 unsigned long partsupp_class_a(unsigned long partkey_hash) { /* same region, populous nation */
 	unsigned long supp_reg = partkey_hash % 5;
 	/* unsigned long supp_nro = (partkey_hash/20) % 4; COMMENTED OUT -- just generate 5 different class-a partsupps */
@@ -384,7 +384,7 @@ mk_order(DSS_HUGE index, order_t * o, long upd_num)
 
 		o->totalprice = 0; /* there would be overflow, anyway.. */
 		o->orderstatus = 'F';
-		o->lines = MAX_L_PER_O; /* a true shitload of lineitems (300K*SF) for each of the 5 populous orders */
+		o->lines = MAX_L_PER_O; /* a true sh*tload of lineitems (300K*SF) for each of the 5 populous orders */
 
 		while (1) {
 			/* generating many lineitems in one order, all using parts 5-20
