@@ -1,4 +1,39 @@
-# @(#)README	2.4.0
+# @(#)README	2.4.0-JCCH
+========================== JCC-H specific info =========================
+
+JCC-H is a version of TPC-H rife with Join Crossing Correlations (JCC). 
+
+You get into situations where 5 keys join with 20% of the fact tables, 
+which is skew that MPP systems tend not to like. This skew, only appears 
+when certain selections are made on the dimension table (often 
+indirectly, the selection may also be on another dimension table a few 
+joins away). This means current optimizers will typically not be able 
+to tell that this will happen.
+
+This was published in TPCTC 2017, the benchmarking workshop at VLDB.
+
+Paper here: https://ir.cwi.nl/pub/27429/27429.pdf
+
+This software is a 100% compatible TPC-H benchmark. It generates very 
+intricate correlations and skew in the datagen when you add the flag. 
+
+usage: dbgen -k [any other options, see below]
+       generates the correlated variables
+
+For the query generation (qgen), it supports two modes of operation: 
+get "normal" parameters where JCC-H behaves without skew, very similar 
+to normal TPC-H. And a "skewed" parameter set: identical 22 TPC-H queries, 
+just different constants, but now the join and scan skew is everywhere.
+
+usage: dbgen -k [any other options, see below]
+       generates the 'skewed' TPC-H parameter bindings
+       omitting generates the 'normal' TPC-H parameter bindings
+
+(normal != default, with default being what TPC-H qgen generates
+ though it is supposed to be similar. Please use normal qgen to get the 
+ default parameters).
+
+========================= TCC-H normal readme =========================
 
 Table of Contents
 ===================
@@ -73,6 +108,8 @@ optional argument.
 
 option  argument    default     action
 ------  --------    -------     ------
+-k                              generate correlated and skewed data
+
 -h                              Display a usage summary
 
 -f      none                    Force. Existing data files will be
@@ -268,6 +305,11 @@ optional argument.
 
 option  argument    default     action
 ------  --------    -------     ------
+-k                              generate 'skewed' parameters that bring about all the 
+                                problems with correlations and skew. Omitting this will 
+                                generate (non-default) parameters that mostly avoid 
+                                these problems and behave rather similar to default TPC-H
+
 -c      none                    Retain comments in translation of template to
                                 EQT
 
