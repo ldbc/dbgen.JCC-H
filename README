@@ -25,7 +25,7 @@ get "normal" parameters where JCC-H behaves without skew, very similar
 to normal TPC-H. And a "skewed" parameter set: identical 22 TPC-H queries, 
 just different constants, but now the join and scan skew is everywhere.
 
-usage: dbgen -k [any other options, see below]
+usage: qgen -k [any other options, see below]
        generates the 'skewed' TPC-H parameter bindings
        omitting generates the 'normal' TPC-H parameter bindings
 
