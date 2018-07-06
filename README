@@ -18,7 +18,7 @@ This software is a 100% compatible TPC-H benchmark. It generates very
 intricate correlations and skew in the datagen when you add the flag. 
 
 usage: dbgen -k [any other options, see below]
-       generates the correlated variables
+       generates the correlated+skewed TPC-H dataset
 
 For the query generation (qgen), it supports two modes of operation: 
 get "normal" parameters where JCC-H behaves without skew, very similar 
@@ -29,7 +29,7 @@ usage: dbgen -k [any other options, see below]
        generates the 'skewed' TPC-H parameter bindings
        omitting generates the 'normal' TPC-H parameter bindings
 
-(normal != default, with default being what TPC-H qgen generates
+(normal != default, with default being what TPC-H qgen generates,
  though it is supposed to be similar. Please use normal qgen to get the 
  default parameters).
 
