@@ -68,11 +68,7 @@
 #include <ctype.h>
 #include <math.h>
 #ifndef _POSIX_SOURCE
-#ifdef __MACH__
 #include <stdlib.h>
-#else
-#include <malloc.h>
-#endif /* MACH */
 #endif /* POSIX_SOURCE */
 #include <fcntl.h>
 #include <sys/types.h>
