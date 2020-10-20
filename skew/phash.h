@@ -28,7 +28,7 @@ char* skew_nations[25];
 extern int JCCH_skew;
 
 void init_skew();
-unsigned long phash(uint64_t key, phash_t *p, int invert);
+uint64_t phash(uint64_t key, phash_t *p, int invert);
 uint16_t bin_nationkey(uint64_t key, uint64_t tbl_size);
 
 #endif /* SKEW_PHASH_H_ */
