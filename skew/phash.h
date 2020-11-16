@@ -22,8 +22,8 @@ extern phash_t phash_supplier;
 extern phash_t phash_customer;
 extern phash_t phash_orders;
 
-char* skew_regions[5];
-char* skew_nations[25];
+extern char* skew_regions[5];
+extern char* skew_nations[25];
 
 extern int JCCH_skew;
 
